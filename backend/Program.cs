@@ -1,23 +1,38 @@
+using HostGrid.Api.Health;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks().AddCheck<SqlServerHealthCheck>(
+    "sql-server", timeout: TimeSpan.FromSeconds(5));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
-
-app.UseHttpsRedirection();
+else
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/api/v1/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
+app.MapHealthChecks("/api/v1/health/ready");
 
 app.Run();
