@@ -1,0 +1,214 @@
+<div class="portfolio-page">
+  @if (data(); as property) {
+    <hg-page-header [title]="property.summary.name" [description]="property.summary.reference + ' · ' + property.summary.city">
+      <a class="hg-secondary" [routerLink]="ctx.link('properties')" [queryParams]="query">{{ ctx.label('back') }}</a>
+      @if (editable) { <a class="portfolio-button" [routerLink]="ctx.link('properties', id + '/edit')" [queryParams]="query">{{ ctx.label('editProperty') }}</a> }
+    </hg-page-header>
+    <div class="actions">
+      <hg-status [label]="ctx.label(states[property.summary.status])" [tone]="property.summary.status === 0 ? 'success' : 'muted'"/>
+      <hg-status [label]="ctx.label(operations[property.summary.operationalStatus])" tone="info"/>
+      @if (ctx.manage) {
+        @if (property.summary.status !== 2) { <button class="hg-secondary" type="button" (click)="status(2)">{{ ctx.label('archive') }}</button> }
+        @if (property.summary.status !== 0) { <button class="hg-secondary" type="button" (click)="status(0)">{{ ctx.label('reactivate') }}</button> }
+        @if (property.summary.status === 0) { <button class="hg-secondary" type="button" (click)="status(1)">{{ ctx.label('deactivate') }}</button> }
+      }
+    </div>
+    @if (problem()) { <p class="error" role="alert">{{ ctx.label(problem()) }}</p> }
+    @if (message()) { <p class="success" role="status">{{ ctx.label(message()) }}</p> }
+    @if (uploading()) { <p role="status">{{ ctx.label('fileInProgress') }}</p> }
+    <div class="portfolio-tabs" role="tablist" [attr.aria-label]="ctx.label('properties')" (keydown)="keys($event)">
+      @for (item of tabs; track item) {
+        <button type="button" class="hg-secondary" role="tab" [id]="'tab-' + item" [attr.tabindex]="tab() === item ? 0 : -1"
+          [attr.aria-selected]="tab() === item" aria-controls="property-tab-content" (click)="selectTab(item)">{{ ctx.label(item) }}</button>
+      }
+    </div>
+    <div class="dashboard-panel portfolio-page" id="property-tab-content" role="tabpanel" tabindex="0" [attr.aria-labelledby]="'tab-' + tab()" [attr.aria-busy]="busy()">
+      @switch (tab()) {
+        @case ('overview') {
+          @if (property.description) { <p>{{ property.description }}</p> }
+          <dl>
+            <div><dt>{{ ctx.label('type') }}</dt><dd>{{ ctx.label(property.summary.type) }}</dd></div>
+            <div><dt>{{ ctx.label('owner') }}</dt><dd>
+              @if (ctx.manage) { <a [routerLink]="ctx.link('owners', property.summary.ownerId)" [queryParams]="query">{{ property.summary.ownerName }}</a> }
+              @else { {{ property.summary.ownerName }} }
+            </dd></div>
+            <div><dt>{{ ctx.label('address') }}</dt><dd>{{ property.address }}</dd></div>
+            <div><dt>{{ ctx.label('maxGuests') }}</dt><dd>{{ property.maxGuests }}</dd></div>
+            <div><dt>{{ ctx.label('bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>
+            <div><dt>{{ ctx.label('bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>
+            <div><dt>{{ ctx.label('rate') }}</dt><dd><hg-currency [amount]="property.summary.baseNightlyRate"/></dd></div>
+            <div><dt>{{ ctx.label('checkIn') }}</dt><dd><bdi>{{ property.checkInTime.slice(0,5) }}</bdi></dd></div>
+            <div><dt>{{ ctx.label('checkOut') }}</dt><dd><bdi>{{ property.checkOutTime.slice(0,5) }}</bdi></dd></div>
+            @if (property.latitude !== null) { <div><dt>{{ ctx.label('latitude') }}</dt><dd><bdi>{{ property.latitude }}</bdi></dd></div> }
+            @if (property.longitude !== null) { <div><dt>{{ ctx.label('longitude') }}</dt><dd><bdi>{{ property.longitude }}</bdi></dd></div> }
+            <div><dt>{{ ctx.label('created') }}</dt><dd>{{ date(property.createdAt) }}</dd></div>
+            <div><dt>{{ ctx.label('updated') }}</dt><dd>{{ date(property.updatedAt) }}</dd></div>
+          </dl>
+        }
+        @case ('photos') {
+          @if (editable) {
+            <h2>{{ ctx.label('uploadPhoto') }}</h2>
+            <hg-file-picker accept=".jpg,.jpeg,.png,.webp" [multiple]="true" (selected)="upload('photos',$event)"/>
+          }
+          <div class="portfolio-grid">
+            @for (photo of property.photos; track photo.id; let first = $first) {
+              <article class="portfolio-card">
+                <hg-private-photo [organization]="organization" [property]="id" [photo]="photo.id" [alt]="photo.name"/>
+                <div class="card-body"><p><bdi>{{ photo.name }}</bdi></p>
+                  @if (first) { <hg-status [label]="ctx.label('currentCover')"/> }
+                  @if (editable) {
+                    <div class="actions">
+                      @if (!first) {
+                        <button class="hg-secondary" type="button" [disabled]="busy()" (click)="orderPhoto(photo.id,true)">{{ ctx.label('cover') }}</button>
+                        <button class="hg-secondary" type="button" [disabled]="busy()" (click)="orderPhoto(photo.id,false)">{{ ctx.label('moveUp') }}</button>
+                      }
+                      <button class="hg-secondary" type="button" (click)="removeFile('photos',photo)">{{ ctx.label('remove') }}</button>
+                    </div>
+                  }
+                </div>
+              </article>
+            } @empty { <p class="subtle">{{ ctx.label('empty') }}</p> }
+          </div>
+        }
+        @case ('contracts') {
+          <p>{{ property.summary.ownerName }}</p>
+          <ul class="record-list">
+            @for (contract of property.contracts; track contract.id) {
+              <li><bdi>{{ contract.startDate }} – {{ contract.endDate || '—' }}</bdi> · {{ contract.rate }}%
+                <hg-status [label]="ctx.label(contract.status)" [tone]="contract.status === 'active' ? 'success' : 'muted'"/>
+                @if (contract.documentId) { <button type="button" class="hg-secondary" (click)="contractFile(contract)">{{ ctx.label('download') }} · {{ contract.documentName }}</button> }
+              </li>
+            } @empty { <li>{{ ctx.label('empty') }}</li> }
+          </ul>
+          @if (editable) {
+            <form class="portfolio-form" [formGroup]="contractForm" (ngSubmit)="createContract()">
+              <label>{{ ctx.label('startDate') }} <input type="date" formControlName="startDate" required></label>
+              <label>{{ ctx.label('endDate') }} <input type="date" formControlName="endDate"></label>
+              <label>{{ ctx.label('commission') }} <input type="number" formControlName="rate" min="0" max="100" step="0.01"></label>
+              <label>{{ ctx.label('documents') }} <select formControlName="documentId"><option value="">{{ ctx.label('choose') }}</option>
+                @for (file of property.documents; track file.id) { <option [value]="file.id">{{ file.name }}</option> }
+              </select></label>
+              <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label('addContract') }}</button>
+            </form>
+            <form class="portfolio-form" [formGroup]="endForm" (ngSubmit)="endContract()">
+              <label>{{ ctx.label('contracts') }} <select formControlName="contractId"><option value="">{{ ctx.label('choose') }}</option>
+                @for (contract of property.contracts; track contract.id) {
+                  @if (!contract.endDate) { <option [value]="contract.id">{{ contract.startDate }}</option> }
+                }
+              </select></label>
+              <label>{{ ctx.label('endDate') }} <input type="date" formControlName="endDate" required></label>
+              <button class="hg-secondary" type="submit" [disabled]="busy()">{{ ctx.label('closeContract') }}</button>
+            </form>
+          }
+        }
+        @case ('inventory') {
+          <h2>{{ ctx.label('amenities') }}</h2>
+          <div class="actions">
+            @for (amenity of amenities(); track amenity.id) {
+              @if (editable) {
+                <label><input type="checkbox" [checked]="selectedAmenities().has(amenity.id)" (change)="toggleAmenity(amenity.id,$event)"> {{ ctx.label(amenity.code) }}</label>
+              } @else if (selectedAmenities().has(amenity.id)) { <hg-status [label]="ctx.label(amenity.code)"/> }
+            }
+            @if (editable) { <button type="button" class="hg-secondary" [disabled]="busy()" (click)="saveAmenities()">{{ ctx.label('save') }}</button> }
+          </div>
+          <h2>{{ ctx.label('inventoryList') }}</h2>
+          <hg-search-input [label]="ctx.label('search')" [value]="inventoryQuery()" (valueChange)="inventoryQuery.set($event)"/>
+          <ul class="record-list">
+            @for (row of inventoryRows(property.inventory); track row.id) {
+              <li><strong>{{ row.name }} × {{ row.quantity }}</strong><span>{{ row.condition }}</span>
+                @if (editable) { <div class="actions">
+                  <button type="button" class="hg-secondary" (click)="editInventory(row)">{{ ctx.label('edit') }}</button>
+                  <button type="button" class="hg-secondary" (click)="removeInventory(row)">{{ ctx.label('remove') }}</button>
+                </div> }
+              </li>
+            } @empty { <li>{{ ctx.label('empty') }}</li> }
+          </ul>
+          @if (editable) {
+            <form class="portfolio-form" [formGroup]="inventoryForm" (ngSubmit)="saveInventory()">
+              <label>{{ ctx.label('name') }} <input formControlName="name" maxlength="200" required></label>
+              <label>{{ ctx.label('quantity') }} <input type="number" formControlName="quantity" min="0" step="1" required></label>
+              <label>{{ ctx.label('condition') }} <input formControlName="condition" maxlength="120"></label>
+              <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label(inventoryEditing() ? 'save' : 'addInventory') }}</button>
+            </form>
+          }
+        }
+        @case ('pricing') {
+          <h2>{{ ctx.label('commissionHistory') }}</h2>
+          <p>{{ ctx.label('defaultCommission') }} · {{ property.defaultCommission }}%</p>
+          <ul class="record-list">@for (row of property.commissionRates; track row.id) {
+            <li><bdi>{{ row.effectiveFrom }} – {{ row.effectiveTo || '—' }}</bdi> · {{ row.rate }}%</li>
+          } @empty { <li>{{ ctx.label('empty') }}</li> }</ul>
+          @if (editable) {
+            <form class="portfolio-form" [formGroup]="rateForm" (ngSubmit)="createRate()">
+              <label>{{ ctx.label('effective') }} <input type="date" formControlName="effectiveFrom" required></label>
+              <label>{{ ctx.label('commission') }} <input type="number" min="0" max="100" step="0.01" formControlName="rate" required></label>
+              <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label('addRate') }}</button>
+            </form>
+          }
+          <h2>{{ ctx.label('seasonalRates') }}</h2>
+          <ul class="record-list">@for (row of property.seasonalRates; track row.id) {
+            <li>{{ ctx.label(kinds[row.priority - 1]) }} · <bdi>{{ row.startDate }} – {{ row.endDate }}</bdi> · <hg-currency [amount]="row.nightlyRate"/>
+              @if (editable) { <button type="button" class="hg-secondary" (click)="editSeason(row)">{{ ctx.label('edit') }}</button> }
+            </li>
+          } @empty { <li>{{ ctx.label('empty') }}</li> }</ul>
+          @if (editable) {
+            <form class="portfolio-form" [formGroup]="seasonForm" (ngSubmit)="saveSeason()">
+              <label>{{ ctx.label('type') }} <select formControlName="priority" (change)="choosePriority($event)">
+                @for (kind of kinds; track kind; let index = $index) { <option [ngValue]="index + 1">{{ ctx.label(kind) }}</option> }
+              </select></label>
+              <label>{{ ctx.label('startDate') }} <input type="date" formControlName="startDate" required></label>
+              <label>{{ ctx.label('endDate') }} <input type="date" formControlName="endDate" required></label>
+              <label>{{ ctx.label('rate') }} (MAD) <input type="number" step="0.01" min="0" formControlName="nightlyRate" required></label>
+              <fieldset class="wide"><legend>{{ ctx.label('days') }}</legend><div class="actions">
+                @for (day of days; track day; let index = $index) {
+                  <label><input type="checkbox" [checked]="checkedDay(index)" [disabled]="seasonForm.controls.priority.value === 1 && index !== 0 && index !== 6"
+                    (change)="setDays(index,$event)"> {{ ctx.label(day) }}</label>
+                }
+              </div></fieldset>
+              <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label(seasonEditing() ? 'save' : 'addSeason') }}</button>
+            </form>
+          }
+          <h2>{{ ctx.label('listings') }}</h2>
+          <ul class="record-list">@for (listing of property.listings; track listing.id) {
+            <li>{{ ctx.label(channels[listing.source]) }} · {{ listing.externalReference }}
+              @if (listing.url) { <a [href]="listing.url" target="_blank" rel="noopener noreferrer">{{ ctx.label('open') }}</a> }
+              @if (editable) { <button class="hg-secondary" type="button" (click)="editListing(listing)">{{ ctx.label('edit') }}</button> }
+            </li>
+          } @empty { <li>{{ ctx.label('empty') }}</li> }</ul>
+          @if (editable) {
+            <form class="portfolio-form" [formGroup]="listingForm" (ngSubmit)="saveListing()">
+              <label>{{ ctx.label('channel') }} <select formControlName="source" (change)="loadListing($event)">
+                @for (channel of channels; track channel; let index = $index) { <option [ngValue]="index">{{ ctx.label(channel) }}</option> }
+              </select></label>
+              <label>{{ ctx.label('url') }} <input type="url" formControlName="url" maxlength="2000"></label>
+              <label>{{ ctx.label('external') }} <input formControlName="externalReference" maxlength="200"></label>
+              <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label('save') }}</button>
+            </form>
+          }
+        }
+        @case ('documents') {
+          @if (editable) { <h2>{{ ctx.label('uploadDocument') }}</h2>
+            <hg-file-picker accept=".pdf" [maxBytes]="20971520" [multiple]="true" (selected)="upload('documents',$event)"/> }
+          <ul class="record-list">
+            @for (file of property.documents; track file.id) {
+              <li><strong><bdi>{{ file.name }}</bdi></strong><bdi>{{ file.contentType }} · {{ file.sizeBytes }} B</bdi> · {{ date(file.uploadedAt) }}
+                <div class="actions">
+                  <button type="button" class="hg-secondary" [disabled]="busy()" (click)="download(file)">{{ ctx.label('download') }}</button>
+                  @if (editable) { <button type="button" class="hg-secondary" (click)="removeFile('documents',file)">{{ ctx.label('remove') }}</button> }
+                </div>
+              </li>
+            } @empty { <li>{{ ctx.label('empty') }}</li> }
+          </ul>
+        }
+        @case ('history') {
+          <ul class="record-list">
+            @for (entry of property.history; track $index) { <li>{{ labelAction(entry.action) }} · {{ date(entry.occurredAt) }}</li> }
+            @empty { <li>{{ ctx.label('empty') }}</li> }
+          </ul>
+        }
+      }
+    </div>
+    <hg-confirm [title]="ctx.label('confirm')" [message]="ctx.label(confirmLabel())" [(open)]="confirmOpen" (confirmed)="confirmed()"/>
+  } @else if (problem() || ready() && !organization) { <hg-error-state [retryable]="false"/> }
+  @else { <hg-loading/> }
+</div>

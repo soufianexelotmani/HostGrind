@@ -1,0 +1,37 @@
+<div class="portfolio-page">
+  @if (ready() && organization) {
+    <hg-page-header [title]="ctx.label(id ? 'editProperty' : 'newProperty')"/>
+    @if (!id) {
+      <div class="portfolio-toolbar">
+        <label>{{ ctx.label('ownerSearch') }} <input type="search" [formControl]="ownerSearch" (keydown.enter)="searchOwners()"></label>
+        <button class="hg-secondary" type="button" (click)="searchOwners()">{{ ctx.label('search') }}</button>
+        <a class="hg-secondary" [routerLink]="ctx.link('owners','new')" [queryParams]="query">{{ ctx.label('newOwner') }}</a>
+      </div>
+    }
+    <form [formGroup]="form" (ngSubmit)="save()" class="portfolio-form dashboard-panel">
+      <label>{{ ctx.label('name') }} <input formControlName="name" maxlength="200" required></label>
+      <label>{{ ctx.label('owner') }} <select formControlName="ownerId" required><option value="">{{ ctx.label('choose') }}</option>
+        @for (owner of owners(); track owner.id) { <option [value]="owner.id">{{ owner.name }}</option> }
+      </select></label>
+      <label>{{ ctx.label('type') }} <select formControlName="typeId" required><option value="">{{ ctx.label('choose') }}</option>
+        @for (type of types(); track type.id) { <option [value]="type.id">{{ ctx.label(type.code) }}</option> }
+      </select></label>
+      <label>{{ ctx.label('city') }} <input formControlName="city" maxlength="120" required></label>
+      <label class="wide">{{ ctx.label('address') }} <input formControlName="address" maxlength="500" required></label>
+      <label class="wide">{{ ctx.label('description') }} <textarea formControlName="description" maxlength="4000"></textarea></label>
+      <label>{{ ctx.label('maxGuests') }} <input type="number" formControlName="maxGuests" min="1" step="1"></label>
+      <label>{{ ctx.label('bedrooms') }} <input type="number" formControlName="bedrooms" min="0" step="1"></label>
+      <label>{{ ctx.label('bathrooms') }} <input type="number" formControlName="bathrooms" min="0" step="1"></label>
+      <label>{{ ctx.label('rate') }} (MAD) <input type="number" formControlName="baseNightlyRate" min="0" step="0.01"></label>
+      <label>{{ ctx.label('checkIn') }} <input type="time" formControlName="checkInTime"></label>
+      <label>{{ ctx.label('checkOut') }} <input type="time" formControlName="checkOutTime"></label>
+      <label>{{ ctx.label('latitude') }} <input type="number" formControlName="latitude" step="0.000001"></label>
+      <label>{{ ctx.label('longitude') }} <input type="number" formControlName="longitude" step="0.000001"></label>
+      @if (problem() || form.touched && form.invalid) { <p class="error wide" role="alert">{{ ctx.label(problem() || 'invalid') }}</p> }
+      <div class="actions">
+        <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label(busy() ? 'loading' : 'save') }}</button>
+        <a class="hg-secondary" [routerLink]="ctx.link('properties',id || undefined)" [queryParams]="query">{{ ctx.label('cancel') }}</a>
+      </div>
+    </form>
+  } @else if (problem() || ready()) { <hg-error-state [retryable]="false"/> } @else { <hg-loading/> }
+</div>

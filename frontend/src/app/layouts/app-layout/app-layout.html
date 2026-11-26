@@ -1,0 +1,121 @@
+<ng-container *transloco="let t; prefix: 'ui'">
+  <a class="skip-link" href="#main-content" (click)="skip($event)">{{ t('skip') }}</a>
+  <div class="workspace" [class.collapsed]="prefs.collapsed()">
+    <aside class="sidebar">
+      <a class="wordmark" [routerLink]="items()[0]?.route ?? '/'" [attr.aria-label]="brand.name">
+        <img [src]="brand.mark" alt="" width="38" height="38"><span>{{ brand.name }}</span>
+      </a>
+      <div class="sidebar-label">{{ t('workspace') }}</div>
+      <nav [attr.aria-label]="t('navigation')">
+        @for (item of items(); track item.label) {
+          @if (item.route) {
+            <a class="nav-link" [routerLink]="item.route" routerLinkActive="selected" [routerLinkActiveOptions]="{exact:item.label === 'dashboard'}"
+               ariaCurrentWhenActive="page" [title]="t(item.label)" [attr.aria-label]="t(item.label)">
+              <svg [lucideIcon]="item.icon" [size]="18" aria-hidden="true"></svg><span>{{ t(item.label) }}</span>
+            </a>
+          } @else {
+            <span class="nav-link upcoming" aria-disabled="true" [title]="t(item.label) + ' · ' + t('soon')">
+              <svg [lucideIcon]="item.icon" [size]="18" aria-hidden="true"></svg><span>{{ t(item.label) }}</span><small>{{ t('soon') }}</small>
+            </span>
+          }
+        }
+      </nav>
+      <button class="sidebar-toggle nav-link" type="button" [attr.aria-expanded]="!prefs.collapsed()"
+        [attr.aria-label]="t(prefs.collapsed() ? 'expand' : 'collapse')" (click)="prefs.toggleSidebar()">
+        <svg [lucideIcon]="panelIcon" [size]="18" aria-hidden="true"></svg><span>{{ t('collapse') }}</span>
+      </button>
+    </aside>
+
+    <div class="workspace-body">
+      <header class="topbar">
+        <a class="wordmark mobile-brand" [routerLink]="items()[0]?.route ?? '/'" [attr.aria-label]="brand.name">
+          <img [src]="brand.mark" alt="" width="33" height="33"><span>{{ brand.name }}</span>
+        </a>
+        <hg-breadcrumbs [items]="crumbs()" />
+        <div class="top-actions">
+          <button type="button" class="search-trigger" [attr.aria-label]="t('search')" (click)="openSearch()">
+            <svg [lucideIcon]="searchIcon" [size]="18" aria-hidden="true"></svg><span>{{ t('search') }}</span><kbd>Ctrl K</kbd>
+          </button>
+          <button type="button" class="icon-button" [attr.aria-label]="t('notifications')" (click)="noticesOpen.set(true)">
+            <svg [lucideIcon]="bellIcon" [size]="19" aria-hidden="true"></svg>
+          </button>
+          <hg-preferences class="desktop-preferences"/>
+          <details class="profile-menu">
+            <summary [attr.aria-label]="t('accountMenu')">
+              <hg-avatar [name]="auth.user()?.email ?? ''"/><svg [lucideIcon]="chevronIcon" [size]="14" aria-hidden="true"></svg>
+            </summary>
+            <div class="profile-popover">
+              <p><bdi>{{ auth.user()?.email }}</bdi></p>
+              @if (roles().length > 1) {
+                @for (role of roles(); track role) {
+                  <a [routerLink]="role === 'SuperAdmin' ? '/admin' : role === 'Manager' ? '/manager' : '/owner'">
+                    {{ ('auth.' + (role === 'SuperAdmin' ? 'admin' : role)) | transloco }}
+                  </a>
+                }
+              }
+              <a routerLink="/security"><svg [lucideIcon]="shieldIcon" [size]="16" aria-hidden="true"></svg>{{ t('security') }}</a>
+              <button type="button" [disabled]="signingOut()" (click)="signOut()"><svg [lucideIcon]="logoutIcon" [size]="16" aria-hidden="true"></svg>{{ t('logout') }}</button>
+            </div>
+          </details>
+        </div>
+      </header>
+
+      <main id="main-content" tabindex="-1"><router-outlet /></main>
+    </div>
+
+    <nav class="bottom-navigation" [attr.aria-label]="t('navigation')">
+      @for (item of items().slice(0, 3); track item.label) {
+        @if (item.route) {
+          <a [routerLink]="item.route" routerLinkActive="selected" [routerLinkActiveOptions]="{exact:item.label === 'dashboard'}" ariaCurrentWhenActive="page">
+            <svg [lucideIcon]="item.icon" [size]="19" aria-hidden="true"></svg>{{ t(item.label) }}
+          </a>
+        } @else {
+          <span aria-disabled="true" [attr.aria-label]="t(item.label) + ' · ' + t('soon')">
+            <svg [lucideIcon]="item.icon" [size]="19" aria-hidden="true"></svg>{{ t(item.label) }}
+          </span>
+        }
+      }
+      <button type="button" (click)="drawerOpen.set(true)">
+        <svg [lucideIcon]="menuIcon" [size]="20" aria-hidden="true"></svg>{{ t('more') }}
+      </button>
+    </nav>
+  </div>
+
+  <hg-modal [title]="t('search')" [(open)]="searchOpen">
+    <label class="command-field">
+      <svg [lucideIcon]="searchIcon" [size]="18" aria-hidden="true"></svg>
+      <input type="search" [formControl]="query" [attr.aria-label]="t('search')" [placeholder]="t('search')" autofocus>
+    </label>
+    <p class="dialog-note">{{ t('searchHint') }}</p>
+    <ul class="search-results">
+      @for (item of results(); track item.route) {
+        <li><a class="nav-link" [routerLink]="item.route" (click)="searchOpen.set(false)">
+          <svg [lucideIcon]="item.icon" [size]="17" aria-hidden="true"></svg>{{ t(item.label) }}</a></li>
+      } @empty { <li class="dialog-note" role="status">{{ t('noResults') }}</li> }
+    </ul>
+  </hg-modal>
+
+  <hg-modal [title]="t('more')" [(open)]="drawerOpen" [drawer]="true">
+    <hg-preferences/>
+    <nav class="drawer-nav" [attr.aria-label]="t('navigation')">
+      @for (item of items(); track item.label) {
+        @if (item.route) {
+          <a class="nav-link" [routerLink]="item.route" (click)="drawerOpen.set(false)">
+            <svg [lucideIcon]="item.icon" [size]="18" aria-hidden="true"></svg>{{ t(item.label) }}</a>
+        } @else {
+          <span class="nav-link upcoming" aria-disabled="true">
+            <svg [lucideIcon]="item.icon" [size]="18" aria-hidden="true"></svg>{{ t(item.label) }}<small>{{ t('soon') }}</small>
+          </span>
+        }
+      }
+      <button type="button" class="nav-link" [disabled]="signingOut()" (click)="signOut()">
+        <svg [lucideIcon]="logoutIcon" [size]="17" aria-hidden="true"></svg>{{ t('logout') }}
+      </button>
+    </nav>
+  </hg-modal>
+
+  <hg-modal [title]="t('notifications')" [(open)]="noticesOpen" [drawer]="true">
+    <p class="dialog-note">{{ t('notificationNote') }}</p>
+  </hg-modal>
+  <p-toast position="bottom-right" />
+</ng-container>

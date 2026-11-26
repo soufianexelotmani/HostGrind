@@ -2,4 +2,7 @@
   <Folder Name="/backend/">
     <Project Path="backend/HostGrid.Api.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HostGrid.Persistence.Tests/HostGrid.Persistence.Tests.csproj" />
+  </Folder>
 </Solution>

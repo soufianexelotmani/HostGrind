@@ -1,0 +1,16 @@
+:host { display: block; }
+.auth-form { inline-size: min(100%, 29rem); color: var(--text); }
+.auth-form h1 { color: var(--text); font-size: clamp(2rem, 4.5vw, 3.5rem); letter-spacing: -.06em; margin-block-end: 1.25rem; }
+:host-context([lang='ar']) h1 { letter-spacing: 0; }
+.auth-form form { display: grid; gap: 1rem; margin-block: 1.35rem 1rem; }
+.auth-form label, .password-group { display: grid; gap: .45rem; font-weight: 700; font-size: .91rem; }
+.auth-form input:not([type='checkbox']) { inline-size: 100%; min-inline-size: 0; min-block-size: 49px; background: var(--surface); color: var(--text); border-color: var(--control-border); }
+.auth-form [pButton] { min-block-size: 49px; justify-content: center; }
+.auth-form a { display: inline-block; padding-block: .5rem; font-weight: 700; }
+.auth-form .check { display: flex; align-items: center; min-block-size: 44px; gap: .5rem; }
+.password-field { display: flex; gap: .3rem; align-items: center; }
+.password-field input { flex: 1; }
+.auth-form p:not(.field-error) { color: var(--muted); }
+.auth-form .notice { border-inline-start: 3px solid var(--success); padding: .5rem .75rem; }
+.auth-form code { display: block; margin-block: .75rem; }
+.auth-form code, .codes { overflow-wrap: anywhere; font-family: monospace; padding: .7rem; background: var(--surface-alt); border-radius: 9px; }

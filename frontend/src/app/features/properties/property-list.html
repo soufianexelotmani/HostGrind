@@ -1,0 +1,65 @@
+<div class="portfolio-page">
+  @if (ready()) {
+    <hg-page-header [title]="ctx.label(ctx.manage ? 'properties' : 'myProperties')">
+      @if (ctx.manage && organization) {
+        <a class="portfolio-button" [routerLink]="ctx.link('properties', 'new')" [queryParams]="query">{{ ctx.label('newProperty') }}</a>
+      }
+    </hg-page-header>
+    @if (organization) {
+      <div class="portfolio-toolbar">
+        @if (ctx.choices().length > 1 || ctx.role === 'SuperAdmin') {
+          <label>{{ ctx.label('organization') }} <select [value]="organization" (change)="changeScope($event)">
+            @for (choice of ctx.choices(); track choice.id) { <option [value]="choice.id">{{ choice.name }}</option> }
+          </select></label>
+        }
+        @if (view() === 'grid') { <hg-search-input [label]="ctx.label('search')" [value]="search()" (valueChange)="changeSearch($event)"/> }
+        @if (ctx.manage) {
+          <label>{{ ctx.label('owner') }} <select [value]="selectedOwner()" (change)="filter('owner', $event)">
+            <option value="">{{ ctx.label('all') }}</option>
+            @for (owner of owners(); track owner.id) { <option [value]="owner.id">{{ owner.name }}</option> }
+          </select></label>
+        }
+        <label>{{ ctx.label('type') }} <select [value]="selectedType()" (change)="filter('type', $event)">
+          <option value="">{{ ctx.label('all') }}</option>
+          @for (type of types(); track type.id) { <option [value]="type.id">{{ ctx.label(type.code) }}</option> }
+        </select></label>
+        <label>{{ ctx.label('status') }} <select [value]="selectedStatus()" (change)="filter('status', $event)">
+          <option value="">{{ ctx.label('all') }}</option>
+          @for (state of states; track state; let index = $index) { <option [value]="index">{{ ctx.label(state) }}</option> }
+        </select></label>
+        <div class="actions">
+          <button type="button" class="hg-secondary" [attr.aria-pressed]="view() === 'grid'" (click)="view.set('grid')">{{ ctx.label('grid') }}</button>
+          <button type="button" class="hg-secondary" [attr.aria-pressed]="view() === 'table'" (click)="view.set('table')">{{ ctx.label('table') }}</button>
+        </div>
+      </div>
+      @if (view() === 'table') {
+        <hg-data-table [columns]="columns()" [rows]="rows()" [trackRow]="track" [label]="ctx.label('properties')"
+          [page]="page()" [total]="total()" [search]="search()" [sort]="sort()" [state]="busy() ? 'loading' : problem() ? 'error' : 'ready'"
+          [actionLabel]="ctx.label('open')" (searchChanged)="changeSearch($event)" (sortChanged)="changeSort($event)"
+          (pageChanged)="changePage($event)" (retry)="changePage(page())" (rowSelected)="open($event)"/>
+      } @else if (busy()) { <hg-loading/> }
+      @else if (problem()) { <hg-error-state [message]="ctx.label(problem())" (retry)="changePage(page())"/> }
+      @else if (!rows().length) { <hg-empty-state [title]="ctx.label('empty')"/> }
+      @else {
+        <div class="portfolio-grid">
+          @for (property of rows(); track property.id) {
+            <article class="portfolio-card">
+              <hg-private-photo [organization]="organization" [property]="property.id" [photo]="property.coverPhotoId" [alt]="property.name"/>
+              <div class="card-body">
+                <p>{{ ctx.label(property.type) }} · {{ property.city }}</p>
+                <h2><a [routerLink]="ctx.link('properties', property.id)" [queryParams]="query">{{ property.name }}</a></h2>
+                <p><bdi>{{ property.reference }}</bdi></p>
+                <div class="actions">
+                  <hg-status [label]="ctx.label(states[property.status])" [tone]="property.status === 0 ? 'success' : 'muted'"/>
+                  <hg-currency [amount]="property.baseNightlyRate"/>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+        @if (total() > 20) { <hg-pagination [page]="page()" [total]="total()" (changed)="changePage($event)"/> }
+      }
+    } @else { <hg-empty-state [title]="ctx.label('noOrganization')"/> }
+  } @else if (problem()) { <hg-error-state [retryable]="false"/> }
+  @else { <hg-loading/> }
+</div>

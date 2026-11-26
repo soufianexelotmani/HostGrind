@@ -1,6 +1,6 @@
 # HostGrid
 
-HostGrid is a property management platform for Moroccan concierge businesses. The solution contains the ASP.NET Core API under `backend/` and the Angular standalone app under `frontend/`. See [Phase 1 progress](docs/PROGRESS.md) for verification and scope.
+HostGrid is a property management platform for Moroccan concierge businesses. The solution contains the ASP.NET Core API under `backend/` and the Angular standalone app under `frontend/`. See the [progress log](docs/PROGRESS.md) for verification and scope.
 
 ## Local prerequisites
 
@@ -10,14 +10,14 @@ HostGrid is a property management platform for Moroccan concierge businesses. Th
 
 ## Run locally
 
-From the repository root, start LocalDB and create the empty development database if needed.
+From the repository root, start LocalDB and apply the EF Core migration.
 
 ```powershell
 SqlLocalDB start MSSQLLocalDB
-sqlcmd -S '(localdb)\MSSQLLocalDB' -E -C -b -Q "IF DB_ID(N'HostGridDb') IS NULL CREATE DATABASE [HostGridDb];"
-
 $env:ConnectionStrings__HostGrid = 'Server=(localdb)\MSSQLLocalDB;Database=HostGridDb;Integrated Security=True;Connect Timeout=3'
+dotnet tool restore
 dotnet restore --locked-mode
+dotnet ef database update --project backend
 dotnet run --project backend --launch-profile http
 ```
 
@@ -40,7 +40,7 @@ The Angular dev server at `http://localhost:4200` forwards `/api/**` to the API 
 | `http://localhost:5025/openapi/v1.json` | OpenAPI document in Development |
 | `http://localhost:5025/scalar/v1` | Interactive API reference in Development |
 
-Phase 1 uses an empty local database. EF Core schema and migrations belong to Phase 2. Account creation and sign-in belong to Phase 3. SMTP and private storage setup will be documented with those integrations.
+See the [database guide](docs/DATABASE.md) for migrations, development seed data, and SQL integration tests. The [ERD](docs/ERD.md) shows the schema. Follow the [authentication guide](docs/AUTHENTICATION.md) to run Mailpit, configure secrets, and bootstrap the first Super Admin. The [security guide](docs/SECURITY.md) describes the authorization and session controls.
 
 ## Verify
 
@@ -52,4 +52,6 @@ npm.cmd run build
 npm.cmd test -- --watch=false
 ```
 
-The backend has HTTP smoke checks in this phase. Run the applications and request the health URLs above to verify startup, the proxy, and SQL connectivity.
+To run the browser smoke tests, start the usual Angular dev server or let Playwright start it. Install Chromium using `npx.cmd playwright install chromium`, or set `HOSTGRID_BROWSER_CHANNEL` to `msedge` to use an installed copy of Edge. Run `npm.cmd run test:e2e` from `frontend/`. See the [UI guide](docs/UI_GUIDE.md) for design, localization, and screenshots.
+
+The backend test suite executes the migration and relational checks on a separate SQL Server test database. Run the applications and request the health URLs above to verify startup, the proxy, and SQL connectivity.

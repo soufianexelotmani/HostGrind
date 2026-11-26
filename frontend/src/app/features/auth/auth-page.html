@@ -1,0 +1,93 @@
+<hg-auth-layout *transloco="let t; prefix: 'auth'" [embedded]="mode === 'security'">
+  <section class="auth-form" aria-labelledby="heading" [attr.aria-busy]="busy()">
+    <h1 id="heading">{{ t(mode) }}</h1>
+    @if (error()) { <p class="field-error" role="alert">{{ t('error') }}</p> }
+    @if (notice()) { <p class="notice" role="status">{{ t(notice()) }}</p> }
+    @if (busy()) { <p class="form-text" role="status">{{ 'ui.loading' | transloco }}</p> }
+
+    @switch (mode) {
+      @case ('security') {
+        <form [formGroup]="form" (ngSubmit)="security('password')">
+          <label>{{ t('currentPassword') }} <input pInputText type="password" name="current" autocomplete="current-password" formControlName="password" required></label>
+          <label>{{ t('newPassword') }} <input pInputText type="password" name="new" autocomplete="new-password" formControlName="newPassword" minlength="12"></label>
+          @if (form.controls.newPassword.touched && form.controls.newPassword.invalid) {
+            <p class="field-error">{{ 'ui.passwordLength' | transloco }}</p>
+          }
+          <button pButton [disabled]="busy() || form.controls.newPassword.value.length < 12 || form.controls.password.invalid">{{ t('changePassword') }}</button>
+          @if (auth.user()?.mfaEnabled) {
+            <label>{{ t('authCode') }} <input pInputText name="code" autocomplete="one-time-code" formControlName="code"></label>
+            <label class="check"><input type="checkbox" name="recovery" formControlName="recovery"> {{ t('recovery') }}</label>
+            <button pButton severity="secondary" type="button" (click)="security('reset')" [disabled]="busy() || form.controls.password.invalid || !form.controls.code.value">{{ t('resetMfa') }}</button>
+          } @else {
+            <button pButton severity="secondary" type="button" (click)="security('enroll')" [disabled]="busy() || form.controls.password.invalid">{{ t('setupMfa') }}</button>
+          }
+        </form>
+        <a routerLink="/">{{ t('backAccount') }}</a>
+      }
+      @case ('mfa') {
+        @if (recoveryCodes().length) {
+          <p>{{ t('saveCodes') }}</p>
+          <ul class="codes" dir="ltr">@for (value of recoveryCodes(); track value) { <li>{{ value }}</li> }</ul>
+          <a [routerLink]="auth.home()">{{ t('continue') }}</a>
+        } @else {
+          @if (setupKey()) {
+            <p>{{ t('enterKey') }}</p>
+            <code dir="ltr">{{ setupKey() }}</code>
+          }
+          <form [formGroup]="form" (ngSubmit)="submit()">
+            <label>{{ t('code') }} <input pInputText name="code" autocomplete="one-time-code" formControlName="code" required maxlength="40" dir="ltr"></label>
+            @if (!setupKey()) {
+              <label class="check"><input type="checkbox" name="recovery" formControlName="recovery"> {{ t('recovery') }}</label>
+            }
+            <button pButton [disabled]="busy() || !form.controls.code.value">{{ t('verify') }}</button>
+          </form>
+          <a routerLink="/login">{{ t('backLogin') }}</a>
+        }
+      }
+      @case ('forbidden') { <a routerLink="/">{{ t('backAccount') }}</a> }
+      @case ('unauthorized') { <a routerLink="/login">{{ t('login') }}</a> }
+      @default {
+        @if ((mode === 'reset' || mode === 'activate') && !hasLink) {
+          <p>{{ t('openEmail') }}</p>
+        } @else if (!notice()) {
+          <form [formGroup]="form" (ngSubmit)="submit()">
+            @if (mode === 'login' || mode === 'forgot') {
+              <label>{{ t('email') }}
+                <input pInputText name="email" type="email" autocomplete="username" formControlName="email" required email dir="ltr"
+                  [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+                  [attr.aria-describedby]="form.controls.email.touched && form.controls.email.invalid ? 'login-email-error' : null">
+              </label>
+              @if (form.controls.email.touched && form.controls.email.invalid) {
+                <p class="field-error" id="login-email-error">{{ 'ui.invalidEmail' | transloco }}</p>
+              }
+            }
+            @if (mode !== 'forgot') {
+              <div class="password-group">
+                <label for="auth-password">{{ mode === 'login' ? t('password') : t('newPassword') }}</label>
+                <div class="password-field">
+                  <input pInputText id="auth-password" name="password" [type]="visiblePassword() ? 'text' : 'password'"
+                    [autocomplete]="mode === 'login' ? 'current-password' : 'new-password'"
+                    formControlName="password" [minlength]="mode === 'login' ? 1 : 12" maxlength="256" required dir="ltr"
+                    [attr.aria-invalid]="mode !== 'login' && form.controls.password.touched && form.controls.password.value.length < 12"
+                    [attr.aria-describedby]="mode !== 'login' && form.controls.password.touched && form.controls.password.value.length < 12 ? 'password-error' : null">
+                  <button type="button" class="icon-button" [attr.aria-label]="(visiblePassword() ? 'ui.hidePassword' : 'ui.showPassword') | transloco"
+                    [attr.aria-pressed]="visiblePassword()" (click)="visiblePassword.update(togglePassword)">
+                    <svg [lucideIcon]="visiblePassword() ? eyeOff : eye" [size]="18" aria-hidden="true"></svg>
+                  </button>
+                </div>
+              </div>
+              @if (mode !== 'login' && form.controls.password.touched && form.controls.password.value.length < 12) {
+                <p id="password-error" class="field-error">{{ 'ui.passwordLength' | transloco }}</p>
+              }
+            }
+            <button pButton [disabled]="busy() || ((mode === 'login' || mode === 'forgot') && form.controls.email.invalid) || (mode !== 'forgot' && form.controls.password.invalid) || ((mode === 'activate' || mode === 'reset') && form.controls.password.value.length < 12)">
+              {{ mode === 'forgot' ? t('sendLink') : mode === 'login' ? t('login') : t('setPassword') }}
+            </button>
+          </form>
+        }
+        @if (mode === 'login') { <a routerLink="/forgot-password">{{ t('forgotLink') }}</a> }
+        @else { <a routerLink="/login">{{ t('backLogin') }}</a> }
+      }
+    }
+  </section>
+</hg-auth-layout>
