@@ -84,7 +84,9 @@ public sealed class OwnerPortfolioService(PortfolioRepository repository, Portfo
         if (owner.UserId.HasValue || owner.IsArchived || await repository.Owners.AnyAsync(row => row.UserId == input.UserId, token))
             throw new SecurityRequestException(409, "An eligible unlinked profile and account are required.");
         var account = await users.FindByIdAsync(input.UserId.ToString());
-        var eligible = account is not null && !await users.IsInRoleAsync(account, CurrentUserService.SuperAdmin) &&
+        var eligible = account is not null && !string.IsNullOrWhiteSpace(owner.Email) &&
+            string.Equals(owner.Email, account.Email, StringComparison.OrdinalIgnoreCase) &&
+            !await users.IsInRoleAsync(account, CurrentUserService.SuperAdmin) &&
             await repository.Database.Set<OrganizationMember>().AnyAsync(row => row.UserId == input.UserId &&
                 row.Role == OrganizationRole.Owner && row.IsActive, token);
         if (!eligible) throw new SecurityRequestException(404, "An eligible Owner account was not found.");
@@ -94,12 +96,12 @@ public sealed class OwnerPortfolioService(PortfolioRepository repository, Portfo
         await transaction.CommitAsync(token);
     }
 
-    internal async Task DisableAsync(Guid id, CancellationToken token)
+    internal async Task SetAccessAsync(Guid id, bool active, CancellationToken token)
     {
         var owner = await LoadAsync(id, token);
         if (owner.UserId is not Guid userId) throw new SecurityRequestException(409, "The profile has no linked account.");
-        await accounts.ChangeMembershipAsync(userId, new(false, CurrentUserService.Owner),
-            access.User.IsInRole(CurrentUserService.SuperAdmin), token);
+        await accounts.ChangeMembershipAsync(userId, new(active, CurrentUserService.Owner),
+            access.User.IsInRole(CurrentUserService.SuperAdmin), token, id);
     }
 
     internal async Task ArchiveAsync(Guid id, byte[] version, CancellationToken token)

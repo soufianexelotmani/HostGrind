@@ -135,6 +135,7 @@ internal sealed class PropertyInventoryItemConfiguration : IEntityTypeConfigurat
         builder.Property(entity => entity.RowVersion).IsRowVersion();
         builder.Property(entity => entity.Name).HasMaxLength(200);
         builder.Property(entity => entity.Condition).HasMaxLength(120);
+        builder.Property(entity => entity.Notes).HasMaxLength(1000);
         builder.HasOne<Property>().WithMany()
             .HasForeignKey(entity => new { entity.OrganizationId, entity.PropertyId })
             .HasPrincipalKey(entity => new { entity.OrganizationId, entity.Id }).OnDelete(DeleteBehavior.Restrict);

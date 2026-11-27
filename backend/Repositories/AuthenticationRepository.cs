@@ -17,13 +17,7 @@ public sealed class AuthenticationRepository(HostGridDbContext database)
         var transaction = await database.Database.BeginTransactionAsync(token);
         try
         {
-            var name = "hostgrid:auth:" + resource;
-            await database.Database.ExecuteSqlInterpolatedAsync($"""
-                DECLARE @result int;
-                EXEC @result = sp_getapplock @Resource = {name}, @LockMode = 'Exclusive',
-                    @LockOwner = 'Transaction', @LockTimeout = 10000;
-                IF @result < 0 THROW 51003, 'Could not acquire authentication lock.', 1;
-                """, token);
+            await LockResourceAsync(resource, token);
             return transaction;
         }
         catch
@@ -31,6 +25,17 @@ public sealed class AuthenticationRepository(HostGridDbContext database)
             await transaction.DisposeAsync();
             throw;
         }
+    }
+
+    internal Task LockResourceAsync(string resource, CancellationToken token)
+    {
+        var name = "hostgrid:auth:" + resource;
+        return database.Database.ExecuteSqlInterpolatedAsync($"""
+            DECLARE @result int;
+            EXEC @result = sp_getapplock @Resource = {name}, @LockMode = 'Exclusive',
+                @LockOwner = 'Transaction', @LockTimeout = 10000;
+            IF @result < 0 THROW 51003, 'Could not acquire authentication lock.', 1;
+            """, token);
     }
 
     internal async Task RevokeAsync(Guid userId, DateTime now, CancellationToken token, Guid? family = null)

@@ -90,12 +90,14 @@ erDiagram
   PropertyInventoryItem {
     guid Id PK
     guid OrganizationId FK
+    string Notes
   }
   Organization ||--o{ PropertyInventoryItem : OrganizationId
   Property ||--o{ PropertyInventoryItem : PropertyId
   ManagementContract {
     guid Id PK
     guid OrganizationId FK
+    datetime ArchivedAt
   }
   Organization ||--o{ ManagementContract : OrganizationId
   Property ||--o{ ManagementContract : PropertyId
@@ -128,15 +130,45 @@ erDiagram
   Guest {
     guid Id PK
     guid OrganizationId FK
+    string EmailMatch
+    string PhoneMatch
   }
   Organization ||--o{ Guest : OrganizationId
   Reservation {
     guid Id PK
     guid OrganizationId FK
+    decimal CommissionRateSnapshot "nullable before confirmation"
+    decimal CommissionAmount "nullable before confirmation"
+    date AvailabilityReleasedFrom "first released night"
+    datetime AvailabilityReleasedAt "nullable UTC"
+    guid AvailabilityReleasedBy FK "nullable actor"
+    guid ConfirmedBy FK "nullable confirmation actor"
+    guid HistoricalEvidenceId FK "private evidence"
+    date ConfirmationDate
   }
   Organization ||--o{ Reservation : OrganizationId
   Property ||--o{ Reservation : PropertyId
   Guest ||--o{ Reservation : GuestId
+  ApplicationUser o|--o{ Reservation : AvailabilityReleasedBy
+  ApplicationUser o|--o{ Reservation : ConfirmedBy
+  ApplicationUser o|--o{ Reservation : HistoricalEnteredBy
+  StoredFile o|--o{ Reservation : HistoricalEvidenceId
+  ReservationPriceRevision {
+    guid Id PK
+    guid OrganizationId FK
+    guid ReservationId FK
+    int Number
+  }
+  ReservationNightPrice {
+    guid Id PK
+    guid OrganizationId FK
+    guid RevisionId FK
+    date Night
+    decimal Amount
+  }
+  Reservation ||--o{ ReservationPriceRevision : ReservationId
+  ApplicationUser ||--o{ ReservationPriceRevision : ActorId
+  ReservationPriceRevision ||--o{ ReservationNightPrice : RevisionId
   ReservationPayment {
     guid Id PK
     guid OrganizationId FK

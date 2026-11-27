@@ -7,10 +7,15 @@ namespace HostGrid.Persistence.Tests;
 
 public sealed class SqlServerFixture : IAsyncLifetime
 {
+    private readonly string? targetMigration;
     private readonly string databaseName = $"HostGrid_Phase2_Test_{Guid.NewGuid():N}";
     private string serverConnection = null!;
     private string databaseConnection = null!;
     private bool ownsDatabase;
+
+    public SqlServerFixture() { }
+
+    internal SqlServerFixture(string targetMigration) => this.targetMigration = targetMigration;
 
     public async ValueTask InitializeAsync()
     {
@@ -31,7 +36,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
         await ExecuteServerCommandAsync($"CREATE DATABASE [{databaseName}]");
         ownsDatabase = true;
         await using var context = CreateContext();
-        await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        await context.Database.MigrateAsync(targetMigration, TestContext.Current.CancellationToken);
     }
 
     internal HostGridDbContext CreateContext(Guid? organizationId = null)

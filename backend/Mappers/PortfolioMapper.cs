@@ -23,6 +23,6 @@ internal static class PortfolioMapper
         property.CheckOutTime = input.CheckOutTime;
     }
 
-    internal static FileView File(Guid id, StoredFile file, int? order = null)
-        => new(id, file.OriginalName, file.ContentType, file.SizeBytes, file.UploadedAt, file.UploaderId, file.ScanStatus, order);
+    internal static FileView File(Guid id, StoredFile file, int? order, bool readable)
+        => new(id, file.OriginalName, file.ContentType, file.SizeBytes, file.UploadedAt, file.UploaderId, file.ScanStatus, order, readable);
 }

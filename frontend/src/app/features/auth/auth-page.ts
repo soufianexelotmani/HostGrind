@@ -23,9 +23,14 @@ export class AuthPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   protected readonly mode = this.route.snapshot.data['mode'] as Mode;
-  private readonly link = new URLSearchParams(this.route.snapshot.fragment ?? '');
+  // Angular already decodes the fragment. The proof is Base64 and cannot contain the field delimiter.
+  private readonly fragment = this.route.snapshot.fragment ?? '';
+  private readonly proofStart = this.fragment.lastIndexOf('&token=');
+  private readonly linkEmail = this.fragment.startsWith('email=') && this.proofStart >= 6
+    ? this.fragment.slice(6, this.proofStart) : '';
+  private readonly proof = this.linkEmail ? this.fragment.slice(this.proofStart + '&token='.length) : '';
   protected readonly form = new FormGroup({
-    email: new FormControl(this.link.get('email') ?? '', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+    email: new FormControl(this.linkEmail, { nonNullable: true, validators: [Validators.required, Validators.email] }),
     password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(256)] }),
     newPassword: new FormControl('', { nonNullable: true, validators: [Validators.minLength(12), Validators.maxLength(256)] }),
     code: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(40)] }),
@@ -40,7 +45,7 @@ export class AuthPage {
   protected readonly togglePassword = (visible: boolean) => !visible;
   protected readonly setupKey = signal('');
   protected readonly recoveryCodes = signal<string[]>([]);
-  protected readonly hasLink = !!this.link.get('token');
+  protected readonly hasLink = !!this.proof;
 
   constructor() {
     if (this.mode === 'mfa' && this.auth.pending()?.status === 'mfa_enrollment_required') {
@@ -64,8 +69,7 @@ export class AuthPage {
         await firstValueFrom(this.auth.resetRequest(email));
         this.notice.set('sent');
       } else if (this.mode === 'activate' || this.mode === 'reset') {
-        await firstValueFrom(this.auth.completePasswordLink(this.mode === 'activate', email,
-          this.link.get('token') ?? '', password));
+        await firstValueFrom(this.auth.completePasswordLink(this.mode === 'activate', email, this.proof, password));
         this.form.controls.password.reset();
         this.notice.set('passwordSet');
       } else if (this.mode === 'mfa') {

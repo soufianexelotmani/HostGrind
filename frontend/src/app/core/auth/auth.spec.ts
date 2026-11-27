@@ -1,7 +1,8 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRouteSnapshot, convertToParamMap, provideRouter, RouterStateSnapshot } from '@angular/router';
+import { ActivatedRoute, ActivatedRouteSnapshot, convertToParamMap, DefaultUrlSerializer, provideRouter, RouterStateSnapshot } from '@angular/router';
+import { AuthPage } from '../../features/auth/auth-page';
 import { authGuard, permissionGuard, roleGuard } from './auth.guards';
 import { authInterceptor } from './auth.interceptor';
 import { AuthService } from './auth.service';
@@ -15,10 +16,15 @@ const session = (accessToken: string) => ({ status: 'authenticated', user: accou
 describe('authentication foundation', () => {
   let auth: AuthService;
   let http: HttpTestingController;
+  let activationFragment: string | null;
 
   beforeEach(() => {
+    activationFragment = null;
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideHttpClient(withInterceptors([authInterceptor])), provideHttpClientTesting()],
+    }).overrideComponent(AuthPage, {
+      set: { template: '', providers: [{ provide: ActivatedRoute,
+        useFactory: () => ({ snapshot: { data: { mode: 'activate' }, fragment: activationFragment } }) }] },
     });
     auth = TestBed.inject(AuthService);
     http = TestBed.inject(HttpTestingController);
@@ -70,6 +76,25 @@ describe('authentication foundation', () => {
     login();
     expect(TestBed.runInInjectionContext(() => roleGuard(route, state)).toString()).toBe('/forbidden');
     expect(TestBed.runInInjectionContext(() => permissionGuard(route, state)).toString()).toBe('/forbidden');
+  });
+
+  it('preserves literal plus signs in an activation link email and proof', () => {
+    const email = 'owner+fixture@example.test';
+    const token = 'ab+cd/e=';
+    const fragment = new URLSearchParams({ email, token }).toString();
+    activationFragment = new DefaultUrlSerializer().parse('/activate#' + fragment).fragment;
+    const replace = vi.spyOn(history, 'replaceState').mockImplementation(() => {});
+    try {
+      const fixture = TestBed.createComponent(AuthPage);
+      const form = fixture.componentInstance['form'];
+      form.controls.password.setValue('Fictitious passphrase');
+      fixture.componentInstance['submit']();
+      const request = http.expectOne('/api/v1/auth/activate');
+      expect(request.request.body).toEqual({ email, token, password: 'Fictitious passphrase' });
+      request.flush(null);
+    } finally {
+      replace.mockRestore();
+    }
   });
 
   function login(): void {

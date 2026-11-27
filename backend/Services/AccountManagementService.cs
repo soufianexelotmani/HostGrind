@@ -96,20 +96,26 @@ public sealed class AccountManagementService(UserManager<ApplicationUser> users,
         }
         else
         {
+            await repository.LockResourceAsync(user.Id.ToString("N"), token);
+            await Database.Entry(user).ReloadAsync(token);
+            if (profile is not null) await Database.Entry(profile).ReloadAsync(token);
             var pending = !user.EmailConfirmed && user.ActivatedAt == null &&
                 await Database.Set<OrganizationMember>().AnyAsync(row =>
                     row.UserId == user.Id && row.IsActive && row.Role == role, token);
-            if (!pending || profile is not null && profile.UserId != user.Id)
+            if (!pending || profile is not null && (profile.IsArchived || profile.UserId != user.Id ||
+                !string.Equals(profile.Email, user.Email, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new SecurityRequestException(409, "This invitation could not be created.");
             }
+            AuthenticationService.RequireSuccess(await users.UpdateSecurityStampAsync(user));
         }
         await transaction.CommitAsync(token);
         await accountSecurity.SendInvitationAsync(user, token);
         return user.Id;
     }
 
-    internal async Task ChangeMembershipAsync(Guid userId, MembershipChangeRequest request, bool superAdmin, CancellationToken token)
+    internal async Task ChangeMembershipAsync(Guid userId, MembershipChangeRequest request, bool superAdmin,
+        CancellationToken token, Guid? ownerProfileId = null)
     {
         var organizationId = RequireTenant();
         var role = SelectRole(request.Role, superAdmin);
@@ -122,6 +128,13 @@ public sealed class AccountManagementService(UserManager<ApplicationUser> users,
             throw new SecurityRequestException(404, "Account membership was not found.");
         }
         var owner = await Database.Set<Owner>().SingleOrDefaultAsync(row => row.UserId == userId, token);
+        if (ownerProfileId.HasValue)
+        {
+            if (member.Role != OrganizationRole.Owner || owner?.Id != ownerProfileId)
+                throw new SecurityRequestException(404, "Owner account membership was not found.");
+            if (request.Active && (owner!.IsArchived || user.EmailConfirmed && !user.IsActive))
+                throw new SecurityRequestException(409, "This account cannot be reactivated in this organization.");
+        }
         if (role == OrganizationRole.Owner && owner is null)
         {
             throw new SecurityRequestException(409, "The account requires an Owner profile before assigning this role.");

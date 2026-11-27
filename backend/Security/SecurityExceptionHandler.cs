@@ -22,10 +22,13 @@ internal sealed class SecurityExceptionHandler(IProblemDetailsService problems) 
             return false;
         }
         http.Response.StatusCode = security.Status;
+        var problem = new ProblemDetails { Status = security.Status, Title = security.Message };
+        if (security.Code is not null)
+            problem.Extensions["code"] = security.Code;
         await problems.WriteAsync(new ProblemDetailsContext
         {
             HttpContext = http,
-            ProblemDetails = new ProblemDetails { Status = security.Status, Title = security.Message }
+            ProblemDetails = problem
         });
         return true;
     }

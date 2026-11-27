@@ -1,16 +1,16 @@
 using HostGrid.Api.DTOs.Properties;
-using HostGrid.Api.Entities.Document;
 using HostGrid.Api.Entities.Property;
 using HostGrid.Api.Enums;
 using HostGrid.Api.Repositories;
 using HostGrid.Api.Security;
+using static HostGrid.Api.Repositories.PortfolioRepository;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace HostGrid.Api.Services;
 
 public sealed class PropertyConfigurationService(PortfolioRepository repository, PortfolioAccess access,
-    PropertyPortfolioService properties, AuthenticationRepository locks)
+    PropertyPortfolioService properties, AuthenticationRepository locks, PropertyFiles files, TimeProvider clock)
 {
     private HostGrid.Api.Data.HostGridDbContext Db => repository.Database;
 
@@ -18,45 +18,81 @@ public sealed class PropertyConfigurationService(PortfolioRepository repository,
     {
         var property = await access.PropertyAsync(id, true, token);
         await using var transaction = await LockEditableAsync(property, token);
-        var rows = Db.Set<ManagementContract>().Where(row => row.PropertyId == id);
-        if (await rows.AnyAsync(row => (input.EndDate == null || row.StartDate < input.EndDate) &&
+        var row = new ManagementContract { OrganizationId = property.OrganizationId, PropertyId = id, OwnerId = property.OwnerId };
+        await ApplyContractAsync(row, input, token);
+        Db.Add(row);
+        await FinishAsync(property, "contract_created", transaction, token);
+    }
+
+    internal async Task UpdateContractAsync(Guid id, Guid contractId, ContractWrite input, CancellationToken token)
+    {
+        var property = await access.PropertyAsync(id, true, token);
+        await using var transaction = await LockEditableAsync(property, token);
+        var row = await ContractRowAsync(id, contractId, token);
+        PortfolioVersion.Match(row.RowVersion, input.Version);
+        var today = PropertyPortfolioService.Today;
+        if (row.ArchivedAt.HasValue || row.StartDate <= today || input.StartDate <= today)
+            throw new SecurityRequestException(409, "Only future contracts can be edited.");
+        await EnsureOpenPeriodAsync(id, new(row.StartDate, row.EndDate), token);
+        await ApplyContractAsync(row, input, token);
+        await FinishAsync(property, "contract_updated", transaction, token);
+    }
+
+    private async Task ApplyContractAsync(ManagementContract contract, ContractWrite input, CancellationToken token)
+    {
+        var id = contract.PropertyId;
+        if (await Db.Set<ManagementContract>().AnyAsync(row => row.PropertyId == id && row.Id != contract.Id &&
+            (input.EndDate == null || row.StartDate < input.EndDate) &&
             (row.EndDate == null || input.StartDate < row.EndDate), token))
             throw new SecurityRequestException(409, "Contract dates overlap an existing contract.");
-        Guid? fileId = null;
+        await EnsureOpenPeriodAsync(id, new(input.StartDate, input.EndDate), token);
         if (input.DocumentId is Guid linkId)
         {
-            var document = await Db.Set<PropertyDocument>().SingleOrDefaultAsync(row => row.PropertyId == id && row.Id == linkId, token)
-                ?? throw new SecurityRequestException(400, "Select a document from this property.");
-            if (!await Db.Set<StoredFile>().AnyAsync(row => row.Id == document.FileId && row.ArchivedAt == null &&
-                row.ScanStatus != FileScanStatus.Rejected, token))
-                throw new SecurityRequestException(400, "Select an available document.");
+            var document = await files.RequireDocumentAttachmentAsync(id, linkId, token);
+            if (contract.FileId is Guid existing && existing != document.FileId)
+                throw new SecurityRequestException(409, "The attached agreement must be retained.");
             document.Type = PropertyDocumentType.Contract;
-            fileId = document.FileId;
+            contract.FileId = document.FileId;
         }
-        var rate = input.Rate ?? await EffectiveCommissionAsync(id, input.StartDate, token);
-        Db.Add(new ManagementContract { OrganizationId = property.OrganizationId, PropertyId = id, OwnerId = property.OwnerId,
-            StartDate = input.StartDate, EndDate = input.EndDate, Rate = rate, FileId = fileId });
-        await FinishAsync(property, "contract_created", transaction, token);
+        contract.StartDate = input.StartDate;
+        contract.EndDate = input.EndDate;
+        contract.Rate = input.Rate ?? await properties.EffectiveCommissionAsync(id, input.StartDate, token);
     }
 
     internal async Task CloseContractAsync(Guid id, Guid contractId, ContractEndWrite input, CancellationToken token)
     {
         var property = await access.PropertyAsync(id, true, token);
         await using var transaction = await LockEditableAsync(property, token);
-        var row = await Db.Set<ManagementContract>().SingleOrDefaultAsync(row => row.Id == contractId && row.PropertyId == id, token)
-            ?? throw Missing();
+        var row = await ContractRowAsync(id, contractId, token);
         PortfolioVersion.Match(row.RowVersion, input.Version);
-        if (row.EndDate is not null || input.EndDate <= row.StartDate)
-            throw new SecurityRequestException(409, "Only open contracts can be ended, after their start date.");
+        if (row.ArchivedAt.HasValue || row.EndDate is not null || input.EndDate <= row.StartDate ||
+            input.EndDate <= PropertyPortfolioService.Today)
+            throw new SecurityRequestException(409, "Only open contracts can be ended on a future date after their start.");
+        await EnsureOpenPeriodAsync(id, new(input.EndDate, null), token);
         row.EndDate = input.EndDate;
         await FinishAsync(property, "contract_ended", transaction, token);
+    }
+
+    internal async Task ArchiveContractAsync(Guid id, Guid contractId, VersionWrite input, CancellationToken token)
+    {
+        var property = await access.PropertyAsync(id, true, token);
+        await using var transaction = await LockEditableAsync(property, token);
+        var row = await ContractRowAsync(id, contractId, token);
+        PortfolioVersion.Match(row.RowVersion, input.Version);
+        if (row.ArchivedAt.HasValue || row.EndDate is not DateOnly end || end > PropertyPortfolioService.Today)
+            throw new SecurityRequestException(409, "Only ended contracts can be archived.");
+        row.ArchivedAt = clock.GetUtcNow().UtcDateTime;
+        await FinishAsync(property, "contract_archived", transaction, token);
     }
 
     internal async Task CommissionAsync(Guid id, CommissionWrite input, CancellationToken token)
     {
         var property = await access.PropertyAsync(id, true, token);
         await using var transaction = await LockEditableAsync(property, token);
-        var previous = await Db.Set<CommissionRateHistory>().Where(row => row.PropertyId == id)
+        if (input.EffectiveFrom < PropertyPortfolioService.Today)
+            throw new SecurityRequestException(409, "Retroactive commission changes require an approved correction policy.");
+        await EnsureOpenPeriodAsync(id, new(input.EffectiveFrom, null), token);
+        var previous = await repository.CommissionRates(id)
             .OrderByDescending(row => row.EffectiveFrom).FirstOrDefaultAsync(token);
         if (previous is not null)
         {
@@ -69,10 +105,15 @@ public sealed class PropertyConfigurationService(PortfolioRepository repository,
         await FinishAsync(property, "commission_changed", transaction, token);
     }
 
-    internal async Task<decimal> EffectiveCommissionAsync(Guid id, DateOnly date, CancellationToken token)
-        => await Db.Set<CommissionRateHistory>().Where(row => row.PropertyId == id && row.EffectiveFrom <= date &&
-            (row.EffectiveTo == null || date < row.EffectiveTo)).OrderByDescending(row => row.EffectiveFrom)
-            .Select(row => (decimal?)row.Rate).FirstOrDefaultAsync(token) ?? await properties.DefaultCommissionAsync(token);
+    private async Task EnsureOpenPeriodAsync(Guid id, ContractPeriod period, CancellationToken token)
+    {
+        if (await repository.HasClosedPeriodAsync(id, period, token))
+            throw new SecurityRequestException(409, "The change would affect a closed financial period.");
+    }
+
+    private async Task<ManagementContract> ContractRowAsync(Guid propertyId, Guid contractId, CancellationToken token)
+        => await Db.Set<ManagementContract>().SingleOrDefaultAsync(row => row.PropertyId == propertyId &&
+            row.Id == contractId, token) ?? throw Missing();
 
     internal async Task AmenitiesAsync(Guid id, AmenitiesWrite input, CancellationToken token)
     {
@@ -103,6 +144,7 @@ public sealed class PropertyConfigurationService(PortfolioRepository repository,
         row.Name = input.Name.Trim();
         row.Quantity = input.Quantity;
         row.Condition = input.Condition?.Trim();
+        row.Notes = input.Notes?.Trim();
         await FinishAsync(property, itemId.HasValue ? "inventory_updated" : "inventory_added", transaction, token);
     }
 
@@ -120,6 +162,8 @@ public sealed class PropertyConfigurationService(PortfolioRepository repository,
     {
         var property = await access.PropertyAsync(id, true, token);
         await using var transaction = await LockEditableAsync(property, token);
+        if (input.StartDate < PropertyPortfolioService.Today)
+            throw new SecurityRequestException(409, "New pricing periods cannot start in the past.");
         var overlap = await Db.Set<SeasonalRate>().Where(row => row.PropertyId == id && row.Id != rateId &&
             row.Priority == input.Priority && row.StartDate < input.EndDate && input.StartDate < row.EndDate).ToListAsync(token);
         if (overlap.Any(row => PropertyPricing.Overlaps(row, input)))
@@ -140,6 +184,15 @@ public sealed class PropertyConfigurationService(PortfolioRepository repository,
         rate.NightlyRate = input.NightlyRate;
         rate.Priority = input.Priority;
         await FinishAsync(property, rateId.HasValue ? "season_updated" : "season_created", transaction, token);
+    }
+
+    internal async Task BaseRateAsync(Guid id, BaseRateWrite input, CancellationToken token)
+    {
+        var property = await access.PropertyAsync(id, true, token);
+        await using var transaction = await LockEditableAsync(property, token);
+        PortfolioVersion.Match(property.RowVersion, input.Version);
+        property.BaseNightlyRate = input.NightlyRate!.Value;
+        await FinishAsync(property, "base_rate_changed", transaction, token);
     }
 
     internal async Task ListingAsync(Guid id, BookingSource source, ListingWrite input, CancellationToken token)

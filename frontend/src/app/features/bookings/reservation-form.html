@@ -1,0 +1,173 @@
+<div class="portfolio-page">
+  @if (ready() && organization && (!id || row())) {
+    <hg-page-header [title]="read ? row()!.summary.reference :
+      t(historical ? 'historical' : id ? 'editReservation' : 'newReservation')">
+      @if (read && canEdit()) {
+        <a class="portfolio-button" [routerLink]="['/manager/reservations', id, 'edit']" [queryParams]="query">{{ t('editReservation') }}</a>
+      }
+      <a class="hg-secondary" routerLink="/manager/reservations" [queryParams]="query">{{ t('reservations') }}</a>
+    </hg-page-header>
+    @if (problem()) { <p class="error" role="alert">{{ t(problem()) }}</p> }
+    @if (read && row(); as booking) {
+      <section class="dashboard-panel">
+        <dl>
+          <div><dt>{{ t('property') }}</dt><dd>{{ booking.summary.propertyName }}</dd></div>
+          <div><dt>{{ t('guest') }}</dt><dd><a [routerLink]="['/manager/guests', booking.summary.guestId]" [queryParams]="query">{{ booking.summary.guestName }}</a></dd></div>
+          <div><dt>{{ t('arrival') }}</dt><dd>{{ date(booking.summary.checkInDate) }}</dd></div>
+          <div><dt>{{ t('departure') }}</dt><dd>{{ date(booking.summary.checkOutDate) }}</dd></div>
+          <div><dt>{{ t('nights') }}</dt><dd>{{ booking.nightCount }}</dd></div>
+          <div><dt>{{ t('source') }}</dt><dd>{{ t(sources[booking.summary.source]) }}</dd></div>
+          <div><dt>{{ t('external') }}</dt><dd>{{ booking.summary.externalBookingId ?? '—' }}</dd></div>
+          <div><dt>{{ t('status') }}</dt><dd>{{ t(statuses[booking.summary.status]) }}</dd></div>
+          <div><dt>{{ t('payment') }}</dt><dd>{{ t(payments[booking.summary.paymentStatus]) }}</dd></div>
+          <div><dt>{{ t('adults') }}</dt><dd>{{ booking.adults }}</dd></div>
+          <div><dt>{{ t('children') }}</dt><dd>{{ booking.children }}</dd></div>
+          <div><dt>{{ t('gross') }}</dt><dd>{{ money(booking.grossAmount) }}</dd></div>
+          <div><dt>{{ t('fees') }}</dt><dd>{{ money(booking.platformFees) }}</dd></div>
+          <div><dt>{{ t('net') }}</dt><dd>{{ money(booking.summary.netAmount) }}</dd></div>
+          <div><dt>{{ t('rate') }}</dt><dd>{{ booking.commissionRate === null ? '—' : booking.commissionRate + '%' }}</dd></div>
+          <div><dt>{{ t('commission') }}</dt><dd>{{ money(booking.commissionAmount) }}</dd></div>
+          <div><dt>{{ t('confirmationDate') }}</dt><dd>{{ date(booking.confirmationDate) }}</dd></div>
+          <div><dt>{{ t('bookingNotes') }}</dt><dd>{{ booking.notes || '—' }}</dd></div>
+        </dl>
+      </section>
+      @if (booking.historical; as historical) {
+        <section class="dashboard-panel">
+          <h2>{{ t('historical') }}</h2>
+          <dl>
+            <div><dt>{{ t('entryDate') }}</dt><dd>{{ date(booking.createdAt) }}</dd></div>
+            <div><dt>{{ t('actualArrival') }}</dt><dd>{{ date(historical.actualCheckInDate) }}</dd></div>
+            <div><dt>{{ t('actualDeparture') }}</dt><dd>{{ date(historical.actualCheckOutDate) }}</dd></div>
+            <div><dt>{{ t('reason') }}</dt><dd>{{ historical.reason }}</dd></div>
+          </dl>
+          <button type="button" class="hg-secondary" (click)="download()">{{ t('downloadEvidence') }}</button>
+        </section>
+      }
+      <section class="dashboard-panel">
+        <h2>{{ t('pricing') }}</h2>
+        @if (booking.pricing; as price) {
+          <ul class="record-list">@for (night of price.nights; track night.night) {
+            <li>{{ date(night.night) }} · {{ money(night.amount) }} · {{ t(night.source === 'external' ? 'actualPrice' : night.source) }}</li>
+          }</ul>
+        } @else { <p>{{ t('legacy') }}</p> }
+      </section>
+      @if (revisions(); as result) {
+        <section class="dashboard-panel">
+          <h2>{{ t('history') }}</h2>
+          @for (revision of result.items; track revision.number) {
+            <details>
+              <summary>{{ date(revision.createdAt) }} · {{ date(revision.checkInDate) }} – {{ date(revision.checkOutDate) }} · {{ money(revision.netAmount) }}</summary>
+              <ul class="record-list">@for (night of revision.nights; track night.night) {
+                <li>{{ date(night.night) }} · {{ money(night.amount) }} · {{ t(night.source === 'external' ? 'actualPrice' : night.source) }}</li>
+              }</ul>
+            </details>
+          } @empty { <p>{{ t('legacy') }}</p> }
+          <hg-pagination [page]="result.pageNumber" [total]="result.total" [pageSize]="result.pageSize" (changed)="loadHistory($event)"/>
+        </section>
+      }
+    } @else if (!id || canEdit()) {
+      @if (!id || row()?.summary?.status === 0) {
+        <section class="dashboard-panel">
+          <h2>{{ t('selectGuest') }}</h2>
+          <div class="portfolio-toolbar" [formGroup]="guestForm">
+            <label>{{ t('name') }} <input type="search" formControlName="search" (keydown.enter)="searchGuests()"></label>
+            <button type="button" class="hg-secondary" (click)="searchGuests()">{{ t('search') }}</button>
+            <button type="button" class="hg-secondary" (click)="inlineGuest.set(!inlineGuest())">{{ t('newGuest') }}</button>
+          </div>
+          @if (inlineGuest()) {
+            <div class="portfolio-form" [formGroup]="guestForm">
+              <label>{{ t('name') }} <input formControlName="name" maxlength="200"></label>
+              <label>{{ t('email') }} <input type="email" formControlName="email"></label>
+              <label>{{ t('phone') }} <input type="tel" formControlName="phone"></label>
+              <div class="actions">
+                <button type="button" class="hg-secondary" (click)="findGuests()">{{ t('suggest') }}</button>
+                <button type="button" class="hg-secondary" (click)="newGuest()" [disabled]="busy() || guestForm.invalid">{{ t('newGuest') }}</button>
+              </div>
+              @if (suggestions(); as matches) {
+                <ul class="wide record-list">
+                  @for (guest of matches; track guest.id) {
+                    <li><button type="button" class="hg-secondary" (click)="selectGuest(guest.id)">{{ guest.name }}</button></li>
+                  } @empty { <li>{{ t('noSuggestions') }}</li> }
+                </ul>
+              }
+            </div>
+          }
+        </section>
+      }
+      @if (historical) { <p>{{ t('historicalRule') }}</p> }
+      @if (!id || row()?.summary?.status === 0) {
+        <div class="portfolio-toolbar">
+          <label>{{ t('findProperty') }} <input type="search" [formControl]="propertySearch" (keydown.enter)="searchProperties()"></label>
+          <button type="button" class="hg-secondary" (click)="searchProperties()">{{ t('search') }}</button>
+        </div>
+      }
+      <form [formGroup]="form" (ngSubmit)="submit(false)" class="portfolio-form dashboard-panel">
+        <label>{{ t('property') }} <select formControlName="propertyId" (change)="propertyChanged()" required>
+          <option value="">{{ t('property') }}</option>
+          @for (property of properties(); track property.id) { <option [value]="property.id">{{ property.name }}</option> }
+        </select></label>
+        <label>{{ t('guest') }} <select formControlName="guestId" required>
+          <option value="">{{ t('selectGuest') }}</option>
+          @for (guest of guests(); track guest.id) { <option [value]="guest.id">{{ guest.name }}</option> }
+        </select></label>
+        <label>{{ t('source') }} <select formControlName="source">
+          @for (source of sources; track source; let i = $index) { <option [ngValue]="i">{{ t(source) }}</option> }
+        </select></label>
+        <label>{{ t('external') }} <input maxlength="200" formControlName="externalBookingId"></label>
+        <label>{{ t('arrival') }} <input type="date" formControlName="checkInDate" required></label>
+        <label>{{ t('departure') }} <input type="date" formControlName="checkOutDate" required></label>
+        <label>{{ t('adults') }} <input type="number" min="1" formControlName="adults"></label>
+        <label>{{ t('children') }} <input type="number" min="0" formControlName="children"></label>
+        @if (historical) {
+          <label>{{ t('confirmationDate') }} <input type="date" formControlName="confirmationDate" required></label>
+          <label>{{ t('actualArrival') }} <input type="date" formControlName="actualCheckInDate"></label>
+          <label>{{ t('actualDeparture') }} <input type="date" formControlName="actualCheckOutDate"></label>
+          <label>{{ t('reason') }} <input maxlength="1000" formControlName="reason" required></label>
+          <label>{{ t('evidence') }} <input type="file" accept=".pdf" (change)="selectFile($event)" required></label>
+        }
+        <label>{{ t('mode') }} <select formControlName="mode">
+          <option [ngValue]="0">{{ t('gross') }}</option><option [ngValue]="2">{{ t('net') }}</option>
+        </select></label>
+        <label>{{ t(form.controls.mode.value === 0 ? 'gross' : 'net') }}
+          <input type="number" min="0" step=".01" formControlName="amount"
+            [attr.required]="form.controls.source.value !== 2 || historical ? true : null"></label>
+        @if (form.controls.mode.value === 0) {
+          <label>{{ t('fees') }} <input type="number" min="0" step=".01" formControlName="fees"></label>
+        }
+        <label>{{ t('bookingNotes') }} <textarea formControlName="notes" maxlength="4000"></textarea></label>
+        <div class="wide actions">
+          @if (!id) { <button type="button" class="hg-secondary" (click)="check()" [disabled]="busy()">{{ t('check') }}</button> }
+          <button type="button" class="hg-secondary" (click)="preview()" [disabled]="busy()">{{ t('quote') }}</button>
+          @if (availability()) { <span role="status">{{ t(availability()) }}</span> }
+        </div>
+        <p class="wide subtle">{{ t('bookingToday') }}</p>
+        @if (form.controls.source.value !== 2 || historical) { <p class="wide subtle">{{ t('externalDetails') }}</p> }
+        @if (nights().length) {
+          <section class="wide">
+            <h2>{{ t('pricing') }}</h2>
+            <ul class="record-list">@for (night of nights(); track night.night) {
+              <li>
+                <label>{{ date(night.night) }} · {{ night.source === 'allocated' && !id ? t('allocated') : money(night.amount) + ' · ' + t(night.source === 'external' ? 'actualPrice' : night.source) }}
+                  <input type="number" min="0" step=".01" [value]="overrides()[night.night] ?? ''" (input)="setOverride(night.night, $event)"
+                    [attr.aria-label]="t('manual') + ' ' + night.night">
+                </label>
+              </li>
+            }</ul>
+          </section>
+        }
+        @if (row()?.summary?.status === 1) {
+          <label class="wide"><input type="checkbox" formControlName="acceptPriceChanges">{{ t('accept') }}</label>
+        }
+        <div class="actions">
+          <button type="submit" class="portfolio-button" [disabled]="busy()">{{ t(id || historical ? 'save' : 'hold') }}</button>
+          @if (!id && !historical) {
+            <button type="button" class="hg-secondary" [disabled]="busy()" (click)="submit(true)">{{ t('confirm') }}</button>
+          }
+          <a routerLink="/manager/reservations" class="hg-secondary" [queryParams]="query">{{ t('cancel') }}</a>
+        </div>
+      </form>
+      <hg-confirm [title]="t('saveConfirmation')" [message]="t('bookingToday')" [(open)]="dialog" (confirmed)="save()"/>
+    } @else { <p>{{ t('legacy') }}</p> }
+  } @else if (problem() || ready() && !organization) { <hg-error-state [retryable]="false"/> }
+  @else { <hg-loading/> }
+</div>

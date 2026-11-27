@@ -1,0 +1,64 @@
+<div class="portfolio-page">
+  @if (ready() && organization) {
+    <hg-page-header [title]="editing ? t(id ? 'editGuest' : 'newGuest') : guest()?.name ?? t('guests')">
+      @if (!id && !editing) {
+        <a class="portfolio-button" routerLink="/manager/guests/new" [queryParams]="query">{{ t('newGuest') }}</a>
+      } @else if (guest() && !editing) {
+        <a class="portfolio-button" [routerLink]="['/manager/guests', id, 'edit']" [queryParams]="query">{{ t('editGuest') }}</a>
+      }
+    </hg-page-header>
+    @if (!id && !editing) {
+      <div class="portfolio-toolbar">
+        @if (ctx.choices().length > 1) {
+          <label>{{ t('organization') }} <select [value]="organization" (change)="changeScope($event)">
+            @for (choice of ctx.choices(); track choice.id) { <option [value]="choice.id">{{ choice.name }}</option> }
+          </select></label>
+        }
+        <label>{{ t('contact') }} <select [value]="filter()" (change)="changeFilter($event)">
+          <option value="">{{ t('all') }}</option><option value="true">{{ t('hasContact') }}</option>
+          <option value="false">{{ t('noContact') }}</option>
+        </select></label>
+      </div>
+      <hg-data-table [columns]="columns()" [rows]="rows()" [trackRow]="track" [label]="t('guests')" [page]="page()"
+        [total]="total()" [search]="term()" [sort]="sort()" [state]="busy() ? 'loading' : problem() ? 'error' : 'ready'"
+        [actionLabel]="t('open')" (searchChanged)="changeSearch($event)" (sortChanged)="changeSort($event)"
+        (pageChanged)="changePage($event)" (retry)="changePage(page())" (rowSelected)="open($event)"/>
+    } @else if (editing && (!id || guest())) {
+      <form [formGroup]="form" (ngSubmit)="save()" class="portfolio-form dashboard-panel">
+        <label>{{ t('name') }} <input formControlName="name" required maxlength="200"></label>
+        <label>{{ t('email') }} <input type="email" formControlName="email" maxlength="254"></label>
+        <label>{{ t('phone') }} <input type="tel" formControlName="phone" maxlength="32"></label>
+        @if (problem() || form.touched && form.invalid) {
+          <p class="error wide" role="alert">{{ t(problem() || 'invalid') }}</p>
+        }
+        <div class="actions">
+          <button class="portfolio-button" type="submit" [disabled]="busy()">{{ t('save') }}</button>
+          <a class="hg-secondary" routerLink="/manager/guests" [queryParams]="query">{{ t('cancel') }}</a>
+        </div>
+      </form>
+    } @else if (guest(); as row) {
+      <section class="dashboard-panel portfolio-section">
+        <h2>{{ t('contact') }}</h2>
+        <dl>
+          <dt>{{ t('email') }}</dt><dd dir="auto">{{ row.email ?? '—' }}</dd>
+          <dt>{{ t('phone') }}</dt><dd dir="auto">{{ row.phone ?? '—' }}</dd>
+          <dt>{{ t('entryDate') }}</dt><dd>{{ date(row.createdAt) }}</dd>
+        </dl>
+      </section>
+      <section class="dashboard-panel portfolio-section">
+        <h2>{{ t('reservations') }}</h2>
+        @if (reservations(); as result) {
+          <ul>
+            @for (booking of result.items; track booking.id) {
+              <li><a [routerLink]="['/manager/reservations', booking.id]" [queryParams]="query">{{ booking.reference }}</a>
+                · {{ date(booking.checkInDate) }} · {{ t(statuses[booking.status]) }}</li>
+            } @empty { <li>{{ t('empty') }}</li> }
+          </ul>
+          <hg-pagination [page]="result.pageNumber" [total]="result.total" [pageSize]="result.pageSize" (changed)="history($event)"/>
+        } @else { <hg-loading/> }
+      </section>
+    } @else if (problem()) { <hg-error-state [retryable]="false"/> } @else { <hg-loading/> }
+  } @else if (problem()) { <hg-error-state [retryable]="false"/> }
+  @else if (ready()) { <hg-empty-state [title]="t('noOrganization')"/> }
+  @else { <hg-loading/> }
+</div>

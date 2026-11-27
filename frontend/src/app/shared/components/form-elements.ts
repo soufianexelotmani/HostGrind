@@ -73,13 +73,14 @@ export class CurrencyDisplay {
   selector: 'hg-file-picker',
   imports: [TranslocoPipe],
   template: `<label class="hg-field">{{ 'ui.upload' | transloco }}
-    <input type="file" [attr.accept]="accept() || null" [multiple]="multiple()" (change)="select($event)">
+    <input type="file" [attr.accept]="accept() || null" [multiple]="multiple()" [disabled]="disabled()" (change)="select($event)">
     </label>@if (rejected()) { <p class="field-error" role="status">{{ 'ui.invalidFiles' | transloco }}</p> }`,
 })
 export class FilePicker {
   readonly accept = input('');
   readonly multiple = input(false);
-  readonly maxBytes = input(10 * 1024 * 1024);
+  readonly maxBytes = input<number | null>(10 * 1024 * 1024);
+  readonly disabled = input(false);
   readonly selected = output<readonly File[]>();
   protected readonly rejected = signal(false);
 
@@ -87,7 +88,8 @@ export class FilePicker {
     const inputElement = event.target as HTMLInputElement;
     const rules = this.accept().toLowerCase().split(',').map(rule => rule.trim()).filter(Boolean);
     const files = Array.from(inputElement.files ?? []);
-    const accepted = files.filter(file => file.size <= this.maxBytes() &&
+    const limit = this.maxBytes();
+    const accepted = files.filter(file => (limit === null || file.size <= limit) &&
       (!rules.length || rules.some(rule => rule.startsWith('.') ? file.name.toLowerCase().endsWith(rule)
         : rule.endsWith('/*') ? file.type.toLowerCase().startsWith(rule.slice(0, -1))
         : file.type.toLowerCase() === rule)));

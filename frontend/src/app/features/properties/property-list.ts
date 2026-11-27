@@ -35,6 +35,7 @@ export class PropertyList extends PortfolioPage {
   protected readonly selectedType = signal('');
   protected readonly selectedStatus = signal('');
   protected readonly states = PROPERTY_STATES;
+  protected readonly operations = OPERATING_STATES;
   protected readonly track = (row: PropertySummary) => row.id;
   private generation = 0;
   protected readonly columns = computed<TableColumn<PropertySummary>[]>(() => [
@@ -43,6 +44,7 @@ export class PropertyList extends PortfolioPage {
     { key: 'city', label: this.ctx.label('city'), value: row => row.city, sortable: true },
     { key: 'type', label: this.ctx.label('type'), value: row => this.ctx.label(row.type) },
     { key: 'status', label: this.ctx.label('status'), value: row => this.ctx.label(this.states[row.status]) },
+    { key: 'operationalStatus', label: this.ctx.label('operationalStatus'), value: row => this.ctx.label(this.operations[row.operationalStatus]) },
     { key: 'baseNightlyRate', label: this.ctx.label('rate'), value: row => formatMoney(row.baseNightlyRate, this.ctx.locale), sortable: true },
   ]);
 

@@ -1,6 +1,8 @@
 using HostGrid.Api.DTOs.Properties;
+using HostGrid.Api.DTOs.Booking;
 using HostGrid.Api.Enums;
 using HostGrid.Api.Services;
+using HostGrid.Api.Validators;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +13,7 @@ namespace HostGrid.Api.Controllers;
 [Route("api/v1/organizations/{organizationId:guid}/properties")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class PropertiesController(PropertyPortfolioService properties, PropertyConfigurationService configuration,
-    PropertyFiles files, PortfolioAccess access, PropertyPricing pricing) : ControllerBase
+    PropertyFiles files, PortfolioAccess access, PropertyPricing pricing, PropertyAvailability availability) : ControllerBase
 {
     [HttpGet]
     public Task<Page<PropertySummary>> List(string? search, Guid? owner, Guid? type, PropertyStatus? status,
@@ -20,6 +22,10 @@ public sealed class PropertiesController(PropertyPortfolioService properties, Pr
 
     [HttpGet("{id:guid}")]
     public Task<PropertyView> Get(Guid id, CancellationToken token) => properties.GetAsync(id, token);
+
+    [HttpGet("{id:guid}/availability")]
+    public Task<AvailabilityView> Availability(Guid id, DateOnly? checkInDate, DateOnly? checkOutDate, CancellationToken token)
+        => availability.QueryAsync(id, new(checkInDate ?? default, checkOutDate ?? default), token);
 
     [HttpGet("types")]
     public Task<List<Option>> Types(CancellationToken token) => properties.TypesAsync(token);
@@ -40,9 +46,21 @@ public sealed class PropertiesController(PropertyPortfolioService properties, Pr
     [HttpPost("{id:guid}/contracts")]
     public Task Contract(Guid id, ContractWrite input, CancellationToken token) => configuration.ContractAsync(id, input, token);
 
+    [HttpPut("{id:guid}/contracts/{contract:guid}")]
+    public Task UpdateContract(Guid id, Guid contract, ContractWrite input, CancellationToken token)
+        => configuration.UpdateContractAsync(id, contract, input, token);
+
     [HttpPut("{id:guid}/contracts/{contract:guid}/end")]
     public Task EndContract(Guid id, Guid contract, ContractEndWrite input, CancellationToken token)
         => configuration.CloseContractAsync(id, contract, input, token);
+
+    [HttpPost("{id:guid}/contracts/{contract:guid}/archive")]
+    public Task ArchiveContract(Guid id, Guid contract, VersionWrite input, CancellationToken token)
+        => configuration.ArchiveContractAsync(id, contract, input, token);
+
+    [HttpGet("{id:guid}/commission-rates/effective")]
+    public Task<EffectiveCommissionView> EffectiveCommission(Guid id, DateOnly? date, CancellationToken token)
+        => properties.CommissionAtAsync(id, date, token);
 
     [HttpPost("{id:guid}/commission-rates")]
     public Task Commission(Guid id, CommissionWrite input, CancellationToken token) => configuration.CommissionAsync(id, input, token);
@@ -69,8 +87,15 @@ public sealed class PropertiesController(PropertyPortfolioService properties, Pr
         => configuration.SeasonAsync(id, rate, input, token);
 
     [HttpGet("{id:guid}/nightly-rate")]
-    public async Task<IActionResult> Price(Guid id, DateOnly night, CancellationToken token)
-        => Ok(new { night, amount = await pricing.ResolveAsync(id, night, token), currency = "MAD" });
+    public Task<NightlyQuote> Price(Guid id, [Microsoft.AspNetCore.Mvc.ModelBinding.BindRequired] DateOnly night, CancellationToken token)
+        => pricing.ResolveAsync(id, night, token);
+
+    [HttpGet("{id:guid}/pricing-preview")]
+    public Task<IReadOnlyList<NightlyQuote>> PricingPreview(Guid id, DateOnly start, DateOnly end, CancellationToken token)
+        => pricing.PreviewAsync(id, start, end, token);
+
+    [HttpPut("{id:guid}/base-rate")]
+    public Task BaseRate(Guid id, BaseRateWrite input, CancellationToken token) => configuration.BaseRateAsync(id, input, token);
 
     [HttpPut("{id:guid}/listings/{source}")]
     public Task Listing(Guid id, BookingSource source, ListingWrite input, CancellationToken token)
@@ -84,8 +109,7 @@ public sealed class PropertiesController(PropertyPortfolioService properties, Pr
     }
 
     [HttpPost("{id:guid}/{group:regex(^(photos|documents)$)}")]
-    [RequestSizeLimit(64000000)]
-    [RequestFormLimits(MultipartBodyLengthLimit = 64000000)]
+    [ServiceFilter(typeof(PropertyUploadLimit))]
     public async Task<IActionResult> Upload(Guid id, string group, IFormFile file, CancellationToken token)
         => StatusCode(201, await files.UploadAsync(id, file, group.Equals("photos", StringComparison.OrdinalIgnoreCase), token));
 
@@ -94,6 +118,7 @@ public sealed class PropertiesController(PropertyPortfolioService properties, Pr
     {
         var photo = group.Equals("photos", StringComparison.OrdinalIgnoreCase);
         var data = await files.DownloadAsync(id, file, photo, token);
+        Response.Headers.CacheControl = "private, no-store";
         return File(data.Content, data.Mime, photo ? null : data.Name, enableRangeProcessing: true);
     }
 

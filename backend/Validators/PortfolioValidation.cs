@@ -39,11 +39,14 @@ internal static class PortfolioValidation
             v.RuleFor(x => x.EffectiveFrom).NotEqual(DateOnly.MinValue);
             v.RuleFor(x => x.Rate).InclusiveBetween(0, 100).PrecisionScale(5, 2, true);
         });
+        SecurityValidationFilter.Add<ContractEndWrite>(services, v =>
+            v.RuleFor(x => x.EndDate).NotEqual(DateOnly.MinValue));
         SecurityValidationFilter.Add<InventoryWrite>(services, v =>
         {
             v.RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
             v.RuleFor(x => x.Quantity).GreaterThanOrEqualTo(0);
             v.RuleFor(x => x.Condition).MaximumLength(120);
+            v.RuleFor(x => x.Notes).MaximumLength(1000);
         });
         SecurityValidationFilter.Add<SeasonWrite>(services, v =>
         {
@@ -54,12 +57,15 @@ internal static class PortfolioValidation
                 .Must((row, mask) => row.Priority != 1 || (mask & ~65) == 0);
             v.RuleFor(x => x.NightlyRate).GreaterThanOrEqualTo(0).PrecisionScale(18, 2, true);
         });
+        SecurityValidationFilter.Add<BaseRateWrite>(services, v =>
+            v.RuleFor(x => x.NightlyRate).NotNull().GreaterThanOrEqualTo(0).PrecisionScale(18, 2, true));
         SecurityValidationFilter.Add<ListingWrite>(services, v =>
         {
             v.RuleFor(x => x.ExternalReference).MaximumLength(200);
             v.RuleFor(x => x.Url).MaximumLength(2000).Must(url => string.IsNullOrWhiteSpace(url) ||
+                !url.Any(char.IsControl) && !url.Contains('\\') &&
                 Uri.TryCreate(url.Trim(), UriKind.Absolute, out var parsed) &&
-                parsed.Scheme is "http" or "https" && parsed.UserInfo.Length == 0);
+                parsed.Scheme is "http" or "https" && parsed.Host.Length > 0 && parsed.UserInfo.Length == 0);
         });
         SecurityValidationFilter.Add<PhotoOrderWrite>(services, v => v.RuleFor(x => x.Ids).NotNull().Must(ids => ids.Length <= 1000));
         SecurityValidationFilter.Add<AmenitiesWrite>(services, v => v.RuleFor(x => x.Ids).NotNull().Must(ids => ids.Length <= 1000));

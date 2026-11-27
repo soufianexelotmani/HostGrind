@@ -1,6 +1,10 @@
 # HostGrid
 
+Managers can manage [guests](docs/GUEST_MANAGEMENT.md), [reservations](docs/RESERVATION_MANAGEMENT.md) and [historical entries](docs/HISTORICAL_RESERVATIONS.md). [Accepted nightly pricing](docs/RESERVATION_PRICING.md) explains how quotes, overrides and allocations are stored.
+
 HostGrid is a property management platform for Moroccan concierge businesses. The solution contains the ASP.NET Core API under `backend/` and the Angular standalone app under `frontend/`. See the [progress log](docs/PROGRESS.md) for verification and scope.
+
+Phase 5 adds scoped property and Owner management, invitations, private photos and PDFs, contracts, commission history, inventory, nightly pricing and manual listing metadata. The Owner portal gives Owners read-only access to their assigned properties. See [property management](docs/PROPERTY_MANAGEMENT.md) for the routes and [Phase 5 acceptance](docs/PHASE_05_ACCEPTANCE.md) for verification, production blockers and the Reservations & Calendar handoff.
 
 ## Local prerequisites
 
@@ -53,5 +57,7 @@ npm.cmd test -- --watch=false
 ```
 
 To run the browser smoke tests, start the usual Angular dev server or let Playwright start it. Install Chromium using `npx.cmd playwright install chromium`, or set `HOSTGRID_BROWSER_CHANNEL` to `msedge` to use an installed copy of Edge. Run `npm.cmd run test:e2e` from `frontend/`. See the [UI guide](docs/UI_GUIDE.md) for design, localization, and screenshots.
+
+The full Phase 5 browser run uses fictitious accounts in an isolated SQL catalog and Mailpit alongside the Angular proxy. The [acceptance report](docs/PHASE_05_ACCEPTANCE.md) records the live coverage and evidence.
 
 The backend test suite executes the migration and relational checks on a separate SQL Server test database. Run the applications and request the health URLs above to verify startup, the proxy, and SQL connectivity.

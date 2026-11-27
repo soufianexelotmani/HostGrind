@@ -66,6 +66,7 @@ public sealed class PropertyInventoryItem : ITenantEntity
     public string Name { get; set; } = null!;
     public int Quantity { get; set; }
     public string? Condition { get; set; }
+    public string? Notes { get; set; }
     public byte[] RowVersion { get; set; } = null!;
 }
 
@@ -79,6 +80,7 @@ public sealed class ManagementContract : ITenantEntity
     public DateOnly? EndDate { get; set; }
     public decimal Rate { get; set; }
     public Guid? FileId { get; set; }
+    public DateTime? ArchivedAt { get; set; }
     public byte[] RowVersion { get; set; } = null!;
 }
 

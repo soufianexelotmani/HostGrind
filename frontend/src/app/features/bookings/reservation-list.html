@@ -1,0 +1,40 @@
+<div class="portfolio-page">
+  @if (ready() && organization) {
+    <hg-page-header [title]="t('reservations')">
+      <a class="portfolio-button" routerLink="/manager/reservations/new" [queryParams]="query">{{ t('newReservation') }}</a>
+      <a class="hg-secondary" routerLink="/manager/reservations/historical" [queryParams]="query">{{ t('historical') }}</a>
+    </hg-page-header>
+    <form class="portfolio-toolbar" [formGroup]="controls" (ngSubmit)="changePage(1)">
+      @if (ctx.choices().length > 1) {
+        <label>{{ t('organization') }} <select [value]="organization" (change)="changeScope($event)">
+          @for (choice of ctx.choices(); track choice.id) { <option [value]="choice.id">{{ choice.name }}</option> }
+        </select></label>
+      }
+      <label>{{ t('property') }} <select formControlName="property"><option value="">{{ t('all') }}</option>
+        @for (row of properties(); track row.id) { <option [value]="row.id">{{ row.name }}</option> }
+      </select></label>
+      <label>{{ t('owner') }} <select formControlName="owner"><option value="">{{ t('all') }}</option>
+        @for (row of owners(); track row.id) { <option [value]="row.id">{{ row.name }}</option> }
+      </select></label>
+      <label>{{ t('source') }} <select formControlName="source"><option value="">{{ t('all') }}</option>
+        @for (option of sources; track option; let i = $index) { <option [value]="i">{{ t(option) }}</option> }
+      </select></label>
+      <label>{{ t('status') }} <select formControlName="status"><option value="">{{ t('all') }}</option>
+        @for (option of statuses; track option; let i = $index) { <option [value]="i">{{ t(option) }}</option> }
+      </select></label>
+      <label>{{ t('payment') }} <select formControlName="paymentStatus"><option value="">{{ t('all') }}</option>
+        @for (option of payments; track option; let i = $index) { <option [value]="i">{{ t(option) }}</option> }
+      </select></label>
+      @for (field of ranges; track field) { <label>{{ t(field) }} <input type="date" [formControlName]="field"></label> }
+      <label>{{ t('external') }} <input formControlName="externalReference"></label>
+      <label>{{ t('guest') }} <input formControlName="guest"></label>
+      <button type="submit" class="hg-secondary">{{ t('applyFilters') }}</button>
+    </form>
+    <hg-data-table [columns]="columns()" [rows]="rows()" [trackRow]="track" [label]="t('reservations')" [page]="page()"
+      [total]="total()" [search]="search()" [sort]="sort()" [state]="busy() ? 'loading' : problem() ? 'error' : 'ready'"
+      [actionLabel]="t('open')" (searchChanged)="changeSearch($event)" (sortChanged)="changeSort($event)"
+      (pageChanged)="changePage($event)" (retry)="changePage(page())" (rowSelected)="open($event)"/>
+  } @else if (problem()) { <hg-error-state [retryable]="false"/> }
+  @else if (ready()) { <hg-empty-state [title]="t('noOrganization')"/> }
+  @else { <hg-loading/> }
+</div>

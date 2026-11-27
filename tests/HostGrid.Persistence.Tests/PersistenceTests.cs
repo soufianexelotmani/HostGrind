@@ -39,7 +39,7 @@ public sealed class PersistenceTests(SqlServerFixture database) : IClassFixture<
         var tableCount = await context.Database.SqlQueryRaw<int>(
             "SELECT COUNT(*) AS [Value] FROM sys.tables WHERE name <> '__EFMigrationsHistory'")
             .SingleAsync(Token);
-        Assert.Equal(67, tableCount);
+        Assert.Equal(69, tableCount);
     }
 
     [Fact]

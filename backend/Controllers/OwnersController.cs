@@ -35,7 +35,10 @@ public sealed class OwnersController(OwnerPortfolioService owners) : ControllerB
     public Task Link(Guid id, OwnerLinkWrite input, CancellationToken token) => owners.LinkAsync(id, input, token);
 
     [HttpPost("{id:guid}/disable-access")]
-    public Task Disable(Guid id, CancellationToken token) => owners.DisableAsync(id, token);
+    public Task Disable(Guid id, CancellationToken token) => owners.SetAccessAsync(id, false, token);
+
+    [HttpPost("{id:guid}/enable-access")]
+    public Task Enable(Guid id, CancellationToken token) => owners.SetAccessAsync(id, true, token);
 
     [HttpPost("{id:guid}/archive")]
     public Task Archive(Guid id, VersionWrite input, CancellationToken token) => owners.ArchiveAsync(id, input.Version, token);

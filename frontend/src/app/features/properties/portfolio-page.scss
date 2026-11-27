@@ -1,4 +1,4 @@
-.portfolio-page { display:grid; gap:1.2rem; }
+.portfolio-page { display:grid; grid-template-columns:minmax(0,1fr); gap:1.2rem; }
 .portfolio-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:.75rem; }
 .portfolio-toolbar label,.portfolio-form label { display:grid; gap:.25rem; min-inline-size:0; }
 .portfolio-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr)); gap:1rem; }
@@ -10,7 +10,7 @@
 .portfolio-form textarea { min-block-size:6rem; }
 .portfolio-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr)); gap:1rem; }
 .portfolio-card { min-inline-size:0; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden; }
-.portfolio-card .card-body { display:grid; gap:.45rem; padding:1rem; }
+.portfolio-card .card-body { display:grid; gap:.45rem; padding:1rem; overflow-wrap:anywhere; }
 .portfolio-card h2 { font-size:1.2rem; }
 .portfolio-card p,.subtle { color:var(--muted); }
 .portfolio-button { display:inline-flex; min-block-size:44px; align-items:center; justify-content:center; padding:.5rem .8rem; border-radius:9px; background:var(--primary); color:var(--primary-text); font-weight:700; }

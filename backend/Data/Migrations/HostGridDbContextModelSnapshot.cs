@@ -77,7 +77,14 @@ namespace HostGrid.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
 
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<string>("EmailMatch")
                         .HasMaxLength(254)
                         .HasColumnType("nvarchar(254)");
 
@@ -94,13 +101,26 @@ namespace HostGrid.Api.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
 
+                    b.Property<string>("PhoneMatch")
+                        .HasMaxLength(15)
+                        .HasColumnType("nvarchar(15)");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "EmailMatch")
+                        .HasFilter("[EmailMatch] IS NOT NULL");
+
+                    b.HasIndex("OrganizationId", "PhoneMatch")
+                        .HasFilter("[PhoneMatch] IS NOT NULL");
 
                     b.ToTable("Guest", "booking");
                 });
@@ -121,6 +141,15 @@ namespace HostGrid.Api.Data.Migrations
                     b.Property<short>("Adults")
                         .HasColumnType("smallint");
 
+                    b.Property<DateTime?>("AvailabilityReleasedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("AvailabilityReleasedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("AvailabilityReleasedFrom")
+                        .HasColumnType("date");
+
                     b.Property<DateOnly>("CheckInDate")
                         .HasColumnType("date");
 
@@ -130,17 +159,30 @@ namespace HostGrid.Api.Data.Migrations
                     b.Property<short>("Children")
                         .HasColumnType("smallint");
 
-                    b.Property<decimal>("CommissionAmount")
+                    b.Property<decimal?>("CommissionAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("CommissionRateSnapshot")
+                    b.Property<decimal?>("CommissionRateSnapshot")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
+                    b.Property<DateOnly?>("ConfirmationDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ConfirmedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("ExternalBookingId")
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(200)")
+                        .UseCollation("Latin1_General_100_BIN2");
 
                     b.Property<decimal?>("GrossAmount")
                         .HasPrecision(18, 2)
@@ -148,6 +190,22 @@ namespace HostGrid.Api.Data.Migrations
 
                     b.Property<Guid>("GuestId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("HistoricalActualCheckIn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("HistoricalActualCheckOut")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("HistoricalEnteredBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("HistoricalEvidenceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("HistoricalReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<decimal>("NetPlatformRevenue")
                         .HasPrecision(18, 2)
@@ -195,22 +253,36 @@ namespace HostGrid.Api.Data.Migrations
                     b.Property<short>("Status")
                         .HasColumnType("smallint");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("AvailabilityReleasedBy");
+
+                    b.HasIndex("ConfirmedBy");
+
+                    b.HasIndex("HistoricalEnteredBy");
+
                     b.HasIndex("OrganizationId", "GuestId");
+
+                    b.HasIndex("OrganizationId", "HistoricalEvidenceId");
 
                     b.HasIndex("OrganizationId", "Reference")
                         .IsUnique();
 
-                    b.HasIndex("OrganizationId", "PropertyId", "CheckInDate", "CheckOutDate");
-
-                    b.HasIndex("OrganizationId", "PropertyId", "Source", "ExternalBookingId")
+                    b.HasIndex("OrganizationId", "Source", "ExternalBookingId")
                         .IsUnique()
+                        .HasDatabaseName("UX_Reservation_Organization_Source_ExternalBookingId")
                         .HasFilter("[ExternalBookingId] IS NOT NULL");
+
+                    b.HasIndex("OrganizationId", "PropertyId", "CheckInDate", "CheckOutDate");
 
                     b.ToTable("Reservation", "booking", t =>
                         {
                             t.HasCheckConstraint("CK_Reservation_ActualStay", "[ActualCheckOutAt] IS NULL OR ([ActualCheckInAt] IS NOT NULL AND [ActualCheckOutAt] >= [ActualCheckInAt])");
+
+                            t.HasCheckConstraint("CK_Reservation_AvailabilityRelease", "([AvailabilityReleasedFrom] IS NULL AND [AvailabilityReleasedAt] IS NULL AND [AvailabilityReleasedBy] IS NULL) OR ([AvailabilityReleasedFrom] IS NOT NULL AND [AvailabilityReleasedAt] IS NOT NULL AND [AvailabilityReleasedBy] IS NOT NULL AND [AvailabilityReleasedFrom] >= [CheckInDate] AND [AvailabilityReleasedFrom] < [CheckOutDate] AND ([Status] = 5 AND [ActualCheckInAt] IS NULL OR [Status] = 3 AND [ActualCheckOutAt] IS NOT NULL))");
 
                             t.HasCheckConstraint("CK_Reservation_CommissionAmount", "[CommissionAmount] >= 0");
 
@@ -332,6 +404,48 @@ namespace HostGrid.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("HostGrid.Api.Entities.Booking.ReservationNightPrice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("ManualOverride")
+                        .HasColumnType("bit");
+
+                    b.Property<DateOnly>("Night")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RevisionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("RuleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "RevisionId", "Night")
+                        .IsUnique();
+
+                    b.ToTable("ReservationNightPrice", "booking", t =>
+                        {
+                            t.HasCheckConstraint("CK_ReservationNightPrice_Amount", "[Amount] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("HostGrid.Api.Entities.Booking.ReservationPayment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -377,6 +491,59 @@ namespace HostGrid.Api.Data.Migrations
 
                             t.HasCheckConstraint("CK_ReservationPayment_Receiver", "[Receiver] BETWEEN 0 AND 4");
                         });
+                });
+
+            modelBuilder.Entity("HostGrid.Api.Entities.Booking.ReservationPriceRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("CheckInDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("CheckOutDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("GrossAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<short>("Mode")
+                        .HasColumnType("smallint");
+
+                    b.Property<decimal>("NetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("PlatformFees")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("OrganizationId", "ReservationId", "Number")
+                        .IsUnique();
+
+                    b.ToTable("ReservationPriceRevision", "booking");
                 });
 
             modelBuilder.Entity("HostGrid.Api.Entities.Booking.ReservationRefund", b =>
@@ -2570,6 +2737,9 @@ namespace HostGrid.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
 
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateOnly?>("EndDate")
                         .HasColumnType("date");
 
@@ -2774,6 +2944,10 @@ namespace HostGrid.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<Guid>("OrganizationId")
                         .IsConcurrencyToken()
@@ -3314,6 +3488,21 @@ namespace HostGrid.Api.Data.Migrations
 
             modelBuilder.Entity("HostGrid.Api.Entities.Booking.Reservation", b =>
                 {
+                    b.HasOne("HostGrid.Api.Entities.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AvailabilityReleasedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HostGrid.Api.Entities.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ConfirmedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HostGrid.Api.Entities.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("HistoricalEnteredBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HostGrid.Api.Entities.Organization.Organization", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId")
@@ -3326,6 +3515,12 @@ namespace HostGrid.Api.Data.Migrations
                         .HasPrincipalKey("OrganizationId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("HostGrid.Api.Entities.Document.StoredFile", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "HistoricalEvidenceId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("HostGrid.Api.Entities.Property.Property", null)
                         .WithMany()
@@ -3367,11 +3562,37 @@ namespace HostGrid.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("HostGrid.Api.Entities.Booking.ReservationNightPrice", b =>
+                {
+                    b.HasOne("HostGrid.Api.Entities.Booking.ReservationPriceRevision", null)
+                        .WithMany("Nights")
+                        .HasForeignKey("OrganizationId", "RevisionId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("HostGrid.Api.Entities.Booking.ReservationPayment", b =>
                 {
                     b.HasOne("HostGrid.Api.Entities.Organization.Organization", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HostGrid.Api.Entities.Booking.Reservation", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "ReservationId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HostGrid.Api.Entities.Booking.ReservationPriceRevision", b =>
+                {
+                    b.HasOne("HostGrid.Api.Entities.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -4377,6 +4598,11 @@ namespace HostGrid.Api.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("HostGrid.Api.Entities.Booking.ReservationPriceRevision", b =>
+                {
+                    b.Navigation("Nights");
                 });
 #pragma warning restore 612, 618
         }

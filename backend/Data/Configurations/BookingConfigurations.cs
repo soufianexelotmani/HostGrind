@@ -1,4 +1,5 @@
 using HostGrid.Api.Entities.Booking;
+using HostGrid.Api.Entities.Document;
 using HostGrid.Api.Entities.Identity;
 using HostGrid.Api.Entities.Organization;
 using HostGrid.Api.Entities.Property;
@@ -22,6 +23,10 @@ internal sealed class GuestConfiguration : IEntityTypeConfiguration<Guest>
         builder.Property(entity => entity.Name).HasMaxLength(200);
         builder.Property(entity => entity.Phone).HasMaxLength(32);
         builder.Property(entity => entity.Email).HasMaxLength(254);
+        builder.Property(entity => entity.EmailMatch).HasMaxLength(254);
+        builder.Property(entity => entity.PhoneMatch).HasMaxLength(15);
+        builder.HasIndex(entity => new { entity.OrganizationId, entity.EmailMatch }).HasFilter("[EmailMatch] IS NOT NULL");
+        builder.HasIndex(entity => new { entity.OrganizationId, entity.PhoneMatch }).HasFilter("[PhoneMatch] IS NOT NULL");
     }
 }
 
@@ -35,6 +40,11 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
             table.HasCheckConstraint("CK_Reservation_Guests", "[Adults] > 0 AND [Children] >= 0");
             table.HasCheckConstraint("CK_Reservation_RevenueInput", "([RevenueInputMode] = 2 AND [GrossAmount] IS NULL AND [PlatformFees] IS NULL AND [PlatformFeeRate] IS NULL) OR ([RevenueInputMode] IN (0, 1) AND [GrossAmount] IS NOT NULL AND [PlatformFees] IS NOT NULL AND [GrossAmount] - [PlatformFees] = [NetPlatformRevenue] AND (([RevenueInputMode] = 0 AND [PlatformFeeRate] IS NULL) OR ([RevenueInputMode] = 1 AND [PlatformFeeRate] IS NOT NULL)))");
             table.HasCheckConstraint("CK_Reservation_ActualStay", "[ActualCheckOutAt] IS NULL OR ([ActualCheckInAt] IS NOT NULL AND [ActualCheckOutAt] >= [ActualCheckInAt])");
+            table.HasCheckConstraint("CK_Reservation_AvailabilityRelease",
+                "([AvailabilityReleasedFrom] IS NULL AND [AvailabilityReleasedAt] IS NULL AND [AvailabilityReleasedBy] IS NULL) OR " +
+                "([AvailabilityReleasedFrom] IS NOT NULL AND [AvailabilityReleasedAt] IS NOT NULL AND [AvailabilityReleasedBy] IS NOT NULL " +
+                "AND [AvailabilityReleasedFrom] >= [CheckInDate] AND [AvailabilityReleasedFrom] < [CheckOutDate] " +
+                "AND ([Status] = 5 AND [ActualCheckInAt] IS NULL OR [Status] = 3 AND [ActualCheckOutAt] IS NOT NULL))");
             table.HasCheckConstraint("CK_Reservation_Source", "[Source] BETWEEN 0 AND 2");
             table.HasCheckConstraint("CK_Reservation_GrossAmount", "[GrossAmount] >= 0");
             table.HasCheckConstraint("CK_Reservation_PlatformFees", "[PlatformFees] >= 0");
@@ -54,7 +64,7 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
             .HasForeignKey(entity => entity.OrganizationId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(entity => entity.RowVersion).IsRowVersion();
         builder.Property(entity => entity.Reference).HasMaxLength(40);
-        builder.Property(entity => entity.ExternalBookingId).HasMaxLength(200);
+        builder.Property(entity => entity.ExternalBookingId).HasMaxLength(200).UseCollation("Latin1_General_100_BIN2");
         builder.Property(entity => entity.GrossAmount).HasPrecision(18, 2);
         builder.Property(entity => entity.PlatformFees).HasPrecision(18, 2);
         builder.Property(entity => entity.PlatformFeeRate).HasPrecision(5, 2);
@@ -63,7 +73,14 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.Property(entity => entity.CommissionAmount).HasPrecision(18, 2);
         builder.Property(entity => entity.ActualCheckInAt).HasColumnType("datetime2");
         builder.Property(entity => entity.ActualCheckOutAt).HasColumnType("datetime2");
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(entity => entity.AvailabilityReleasedBy)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(entity => entity.Notes).HasMaxLength(4000);
+        builder.Property(entity => entity.HistoricalReason).HasMaxLength(1000);
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(entity => entity.ConfirmedBy).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(entity => entity.HistoricalEnteredBy).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<StoredFile>().WithMany().HasForeignKey(row => new { row.OrganizationId, row.HistoricalEvidenceId })
+            .HasPrincipalKey(row => new { row.OrganizationId, row.Id }).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Property>().WithMany()
             .HasForeignKey(entity => new { entity.OrganizationId, entity.PropertyId })
             .HasPrincipalKey(entity => new { entity.OrganizationId, entity.Id }).OnDelete(DeleteBehavior.Restrict);
@@ -71,8 +88,44 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
             .HasForeignKey(entity => new { entity.OrganizationId, entity.GuestId })
             .HasPrincipalKey(entity => new { entity.OrganizationId, entity.Id }).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => new { entity.OrganizationId, entity.Reference }).IsUnique();
-        builder.HasIndex(entity => new { entity.OrganizationId, entity.PropertyId, entity.Source, entity.ExternalBookingId }).IsUnique().HasFilter("[ExternalBookingId] IS NOT NULL");
+        builder.HasIndex(entity => new { entity.OrganizationId, entity.Source, entity.ExternalBookingId })
+            .IsUnique().HasFilter("[ExternalBookingId] IS NOT NULL")
+            .HasDatabaseName("UX_Reservation_Organization_Source_ExternalBookingId");
         builder.HasIndex(entity => new { entity.OrganizationId, entity.PropertyId, entity.CheckInDate, entity.CheckOutDate });
+    }
+}
+
+internal sealed class ReservationPriceRevisionConfiguration : IEntityTypeConfiguration<ReservationPriceRevision>
+{
+    public void Configure(EntityTypeBuilder<ReservationPriceRevision> builder)
+    {
+        builder.ToTable("ReservationPriceRevision", "booking");
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.Id).HasDefaultValueSql("NEWSEQUENTIALID()");
+        builder.HasAlternateKey(row => new { row.OrganizationId, row.Id });
+        builder.HasIndex(row => new { row.OrganizationId, row.ReservationId, row.Number }).IsUnique();
+        builder.Property(row => row.GrossAmount).HasPrecision(18, 2);
+        builder.Property(row => row.PlatformFees).HasPrecision(18, 2);
+        builder.Property(row => row.NetAmount).HasPrecision(18, 2);
+        builder.HasOne<Reservation>().WithMany().HasForeignKey(row => new { row.OrganizationId, row.ReservationId })
+            .HasPrincipalKey(row => new { row.OrganizationId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(row => row.ActorId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasMany(row => row.Nights).WithOne().HasForeignKey(row => new { row.OrganizationId, row.RevisionId })
+            .HasPrincipalKey(row => new { row.OrganizationId, row.Id }).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class ReservationNightPriceConfiguration : IEntityTypeConfiguration<ReservationNightPrice>
+{
+    public void Configure(EntityTypeBuilder<ReservationNightPrice> builder)
+    {
+        builder.ToTable("ReservationNightPrice", "booking", table =>
+            table.HasCheckConstraint("CK_ReservationNightPrice_Amount", "[Amount] >= 0"));
+        builder.HasKey(row => row.Id);
+        builder.Property(row => row.Id).HasDefaultValueSql("NEWSEQUENTIALID()");
+        builder.HasIndex(row => new { row.OrganizationId, row.RevisionId, row.Night }).IsUnique();
+        builder.Property(row => row.Amount).HasPrecision(18, 2);
+        builder.Property(row => row.Source).HasMaxLength(16);
     }
 }
 

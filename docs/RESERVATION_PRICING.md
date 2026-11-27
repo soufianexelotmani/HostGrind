@@ -1,0 +1,9 @@
+# Accepted reservation pricing
+
+Direct reservations propose MAD prices using **Custom > Seasonal > Weekend > Base**, with rule provenance and explicit per-night overrides. Airbnb and Booking.com accept actual amounts. Historical Direct entries also use recorded amounts. In gross mode the sum of accepted prices is gross and net is gross less platform fees. In direct-net mode the nightly amounts sum to entered or proposed net. Gross and fees stay null. Fees cannot exceed gross.
+
+For external and historical bookings with only a total or some known nights, subtract known amounts from the total, divide the residual in whole cent units among unresolved nights, and give one extra cent to the earliest unresolved nights until the remainder is zero. Label these values as allocated. Known prices retain their actual provenance. This allocation preserves entered totals and does not establish revenue recognition.
+
+`ReservationPriceRevision` stores totals, price basis, revision order, actor and UTC time. `ReservationNightPrice` stores accepted amounts and provenance. Revisions retain their prior rows, including removed nights. Unchanged nights retain their previous price. Only new Direct nights are proposed from current property rules. The next write rechecks prices in the property transaction. `ReservationNight` remains the financial allocation model for a later phase. Legacy bookings do not receive fabricated price rows.
+
+Confirmation resolves the one effective property history rate for the Casablanca confirmation day. Missing or ambiguous rates fail explicitly. Pending has no captured rate. Commission amount is rounded to two decimal places, half away from zero, from the exact net and captured percentage. Confirmed edits can change the amount with an approved net change while preserving the percentage. This is the approved reservation amount rule and does not set Phase 7 allocation policy.

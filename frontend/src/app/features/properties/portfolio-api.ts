@@ -10,13 +10,14 @@ export interface OwnerPortfolio { owner: Owner; properties: PropertySummary[]; c
 export interface PropertySummary { id: string; reference: string; name: string; city: string; ownerId: string; ownerName: string;
   typeId: string; type: string; status: number; operationalStatus: number; baseNightlyRate: number; coverPhotoId: string | null }
 export interface Contract { id: string; propertyId: string; startDate: string; endDate: string | null; rate: number;
-  status: string; documentName: string | null; documentId: string | null; version: string }
+  status: string; documentName: string | null; documentId: string | null; version: string; archivedAt: string | null }
 export interface Commission { id: string; effectiveFrom: string; effectiveTo: string | null; rate: number }
-export interface Inventory { id: string; name: string; quantity: number; condition: string | null; version: string }
+export interface Inventory { id: string; name: string; quantity: number; condition: string | null; version: string; notes: string | null }
+export interface NightlyQuote { night: string; amount: number; currency: 'MAD'; source: 'base' | 'weekend' | 'seasonal' | 'custom'; ruleId: string | null }
 export interface Season { id: string; startDate: string; endDate: string; daysOfWeek: number; nightlyRate: number; priority: number; version: string }
 export interface Listing { id: string; source: number; url: string | null; externalReference: string | null; version: string }
 export interface PrivateFile { id: string; name: string; contentType: string; sizeBytes: number; uploadedAt: string;
-  uploaderId: string; scanStatus: number; sortOrder: number | null }
+  uploaderId?: string; scanStatus: number; sortOrder: number | null; readable: boolean }
 export interface PropertyView {
   summary: PropertySummary; description: string | null; address: string; latitude: number | null; longitude: number | null;
   maxGuests: number; bedrooms: number; bathrooms: number; checkInTime: string; checkOutTime: string;
@@ -24,6 +25,7 @@ export interface PropertyView {
   contracts: Contract[]; commissionRates: Commission[]; inventory: Inventory[]; amenities: string[];
   seasonalRates: Season[]; listings: Listing[]; photos: PrivateFile[]; documents: PrivateFile[];
   history: { action: string; occurredAt: string }[];
+  businessDate: string; currentCommission: number; activeContract: Contract | null;
 }
 export type FileGroup = 'photos' | 'documents';
 type Query = Record<string, string | number | boolean | null | undefined>;
@@ -56,7 +58,9 @@ export class PortfolioApi {
   upload(org: string, property: string, group: FileGroup, file: File) {
     const body = new FormData();
     body.append('file', file);
-    return this.http.post<PrivateFile>(this.path(org, `properties/${property}/${group}`), body);
+    return this.http.post<PrivateFile>(this.path(org, `properties/${property}/${group}`), body, {
+      observe: 'events', reportProgress: true,
+    });
   }
   blob(org: string, property: string, group: FileGroup, file: string) {
     return this.http.get(this.path(org, `properties/${property}/${group}/${file}`), { responseType: 'blob' });

@@ -63,6 +63,7 @@ h1, h2, h3 { font-weight: 750; line-height: 1.22; }
 .breadcrumbs li + li::before { content: '/'; margin-inline-end: .4rem; color: var(--muted); }
 .breadcrumbs [aria-current] { color: var(--text); font-weight: 700; }
 .page-header { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.page-header > div { min-inline-size: 0; overflow-wrap: anywhere; }
 .page-header h1 { font-size: clamp(1.8rem, 4vw, 3.15rem); letter-spacing: -.055em; }
 .page-header p { margin-block-start: .55rem; color: var(--muted); max-inline-size: 58ch; }
 :lang(ar) h1, :lang(ar) .wordmark { letter-spacing: 0; }

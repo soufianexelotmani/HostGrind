@@ -135,16 +135,20 @@ export class OwnerForm extends PortfolioPage {
   }
 }
 
+type ConfirmedOwnerAction = 'archive' | 'disable-access' | 'enable-access';
+
 @Component({
   selector: 'hg-owner-details', providers: [PortfolioContext],
-  imports: [RouterLink, PageHeader, LoadingSpinner, ErrorState, StatusBadge, ConfirmationDialog, EmptyState],
+  imports: [RouterLink, PageHeader, LoadingSpinner, ErrorState, StatusBadge, ConfirmationDialog],
   styleUrl: pageStyle,
   template: `
     <div class="portfolio-page">
       @if (data(); as portfolio) {
         <hg-page-header [title]="portfolio.owner.name" [description]="portfolio.owner.reference">
           <a class="hg-secondary" [routerLink]="ctx.link('owners')" [queryParams]="query">{{ ctx.label('back') }}</a>
-          <a class="portfolio-button" [routerLink]="ctx.link('owners', id + '/edit')" [queryParams]="query">{{ ctx.label('editOwner') }}</a>
+          @if (ctx.manage) {
+            <a class="portfolio-button" [routerLink]="ctx.link('owners', id + '/edit')" [queryParams]="query">{{ ctx.label('editOwner') }}</a>
+          }
         </hg-page-header>
         @if (problem()) { <p class="error" role="alert">{{ ctx.label(problem()) }}</p> }
         @if (message()) { <p class="success" role="status">{{ ctx.label(message()) }}</p> }
@@ -152,14 +156,16 @@ export class OwnerForm extends PortfolioPage {
           <dl><div><dt>{{ ctx.label('email') }}</dt><dd><bdi>{{ portfolio.owner.email || '—' }}</bdi></dd></div>
             <div><dt>{{ ctx.label('phone') }}</dt><dd><bdi>{{ portfolio.owner.phone || '—' }}</bdi></dd></div>
             <div><dt>{{ ctx.label('account') }}</dt><dd><hg-status [label]="ctx.label(portfolio.owner.isArchived ? 'archived' : state(portfolio.owner))"/></dd></div></dl>
-          @if (!portfolio.owner.isArchived) {
+          @if (ctx.manage && !portfolio.owner.isArchived) {
             <div class="actions">
               @if (portfolio.owner.email && (!portfolio.owner.userId || !portfolio.owner.activated && portfolio.owner.accessEnabled)) {
                 <button type="button" class="portfolio-button" [disabled]="busy()" (click)="action('invitation')">
                   {{ ctx.label(portfolio.owner.userId ? 'resend' : 'invite') }}</button>
               }
               @if (portfolio.owner.userId && portfolio.owner.accessEnabled) {
-                <button type="button" class="hg-secondary" (click)="request('disable-access')">{{ ctx.label('disable') }}</button>
+                <button type="button" class="hg-secondary" [disabled]="busy()" (click)="request('disable-access')">{{ ctx.label('disable') }}</button>
+              } @else if (portfolio.owner.userId) {
+                <button type="button" class="hg-secondary" [disabled]="busy()" (click)="request('enable-access')">{{ ctx.label('enableAccess') }}</button>
               }
               <button type="button" class="hg-secondary" (click)="request('archive')">{{ ctx.label('archive') }}</button>
             </div>
@@ -185,7 +191,7 @@ export class OwnerForm extends PortfolioPage {
               · {{ ctx.label(contract.status) }} · {{ contract.rate }}%</li>
           } @empty { <li>{{ ctx.label('empty') }}</li> }</ul>
         </section>
-        <hg-confirm [title]="ctx.label('confirm')" [message]="ctx.label(pending() === 'archive' ? 'archive' : 'disable')"
+        <hg-confirm [title]="ctx.label('confirm')" [message]="ctx.label(actionLabels[pending()])"
           [(open)]="confirmOpen" (confirmed)="action(pending())"/>
       } @else if (problem() || ready() && !organization) { <hg-error-state [retryable]="false"/> }
       @else { <hg-loading/> }
@@ -195,11 +201,14 @@ export class OwnerDetails extends PortfolioPage {
   protected readonly data = signal<OwnerPortfolio | null>(null);
   protected readonly id = this.route.snapshot.paramMap.get('id') ?? '';
   protected readonly confirmOpen = signal(false);
-  protected readonly pending = signal('archive');
+  protected readonly pending = signal<ConfirmedOwnerAction>('archive');
+  protected readonly actionLabels = { archive: 'archive', 'disable-access': 'disable', 'enable-access': 'enableAccess' };
   protected readonly state = accountState;
   constructor() { super(); void this.start(() => this.load()); }
-  protected request(action: string): void { this.pending.set(action); this.confirmOpen.set(true); }
-  protected action(action: string): void { this.write(action, { version: this.data()?.owner.version }); }
+  protected request(action: ConfirmedOwnerAction): void { this.pending.set(action); this.confirmOpen.set(true); }
+  protected action(action: ConfirmedOwnerAction | 'invitation'): void {
+    this.write(action, action === 'archive' ? { version: this.data()?.owner.version } : {});
+  }
   protected link(event: Event, userId: string): void {
     event.preventDefault(); this.write('link', { userId: userId.trim(), version: this.data()?.owner.version });
   }

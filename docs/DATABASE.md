@@ -64,7 +64,11 @@ Run `dotnet test` with LocalDB available, or set `HOSTGRID_TEST_SQLSERVER` to a 
 
 ## Reservation concurrency strategy
 
-Every reservation or block mutation affecting occupancy will acquire a transaction-owned exclusive SQL Server application lock via `sp_getapplock`, keyed by organization and property. Acquire the lock before checks or writes, use a bounded timeout, and handle negative lock return codes as failures. For a move between properties, acquire both property locks in a stable order. Inside the transaction check both active reservations and active calendar blocks using `start < proposedEnd AND end > proposedStart`, excluding the row being edited. Then write the reservation or block and its nightly allocations before commit. This preserves same-day turnover. Phase 6 will exercise concurrent reservations and block combinations on SQL Server. Phase 2 has supporting range indexes and per-reservation nightly uniqueness.
+Checkpoint 6.1 uses a transaction-owned exclusive SQL Server application lock keyed by organization and property. Reservation and calendar block writes check both interval sources while locked, excluding only the authorized row being edited. Pending moves lock both properties in a stable order. The existing range indexes and per-reservation nightly uniqueness remain. See [availability](AVAILABILITY_ENGINE.md) for the API and [transaction design](RESERVATION_CONCURRENCY_DESIGN.md) for the SQL tests and future write requirements.
+
+`20261127133709_BookingAvailabilityFoundation` adds nullable release date, UTC time and actor columns with a consistency constraint and restrictive actor FK. Reservation-level commission rate and amount become nullable for new Pending holds. Existing values, precision, and nightly allocations are preserved. No historic dates are synthesized.
+
+`20261127142833_GuestReservationManagement` adds guest matching indexes, nullable legacy metadata, private historical evidence links, and separate accepted-price revision and nightly tables. It replaces property-qualified external reference uniqueness with the filtered, case-sensitive organization/source/reference index. Migration preflight checks normalized duplicates and aborts before changing the index. It normalizes references and derives guest match keys while preserving legacy amounts, dates and rates. See [reservation pricing](RESERVATION_PRICING.md).
 
 ## Financial scope and decisions to confirm
 
@@ -72,4 +76,8 @@ Direct-net bookings store absent gross and fees as NULL. Gross input stores the 
 
 The model stores nightly net and commission allocations, partial receipts and refunds, expense funding source, reimbursements, owner-direct receipts, payout allocations, signed settlement balances and later adjustments. Financial services must separately calculate economic profit and actual settlement. They must serialize writes affecting cumulative payment, reversal, and payout limits.
 
-Approval is still needed before implementation of the rules for commission snapshot timing, rounding and remainder allocation, stays in progress at close, recognition dates for retained cancellation fees, and mixed-cash settlement and deficit allocation. Confirm pending reservation occupancy and equal-priority seasonal pricing behavior before reservation services. These decisions can be made in their respective phases.
+Capture the commission snapshot at confirmation using its local calendar date in Africa/Casablanca. Rounding and remainder allocation, stays in progress at close, recognition dates for retained cancellation fees, and mixed-cash settlement and deficit allocation still require approval. Pending reservations block immediately and manual expiry is the V1 workflow. Phase 5 pricing rejects same-priority rules that can apply to the same night. See the [pricing guide](INVENTORY_AND_PRICING.md).
+
+## Phase 5 migrations
+
+`PropertyPortfolio` adds property timestamps and archive fields, permits Owner profiles before account linking, and seeds the amenity catalog. `ManagementContractArchive` adds an optional archive timestamp. `PropertyInventoryNotes` adds optional notes alongside item condition. The five-migration chain is verified in [Phase 5 acceptance](PHASE_05_ACCEPTANCE.md).

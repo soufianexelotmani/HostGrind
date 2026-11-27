@@ -15,7 +15,11 @@
     </div>
     @if (problem()) { <p class="error" role="alert">{{ ctx.label(problem()) }}</p> }
     @if (message()) { <p class="success" role="status">{{ ctx.label(message()) }}</p> }
-    @if (uploading()) { <p role="status">{{ ctx.label('fileInProgress') }}</p> }
+    @if (uploadProgress(); as progress) {
+      <label class="actions">{{ ctx.label('fileInProgress') }} <bdi>{{ progress.current }}/{{ progress.count }}</bdi>
+        <progress max="100" [attr.value]="progress.percent"></progress>
+      </label>
+    }
     <div class="portfolio-tabs" role="tablist" [attr.aria-label]="ctx.label('properties')" (keydown)="keys($event)">
       @for (item of tabs; track item) {
         <button type="button" class="hg-secondary" role="tab" [id]="'tab-' + item" [attr.tabindex]="tab() === item ? 0 : -1"
@@ -48,18 +52,24 @@
         @case ('photos') {
           @if (editable) {
             <h2>{{ ctx.label('uploadPhoto') }}</h2>
-            <hg-file-picker accept=".jpg,.jpeg,.png,.webp" [multiple]="true" (selected)="upload('photos',$event)"/>
+            <hg-file-picker accept=".jpg,.jpeg,.png,.webp" [maxBytes]="null" [multiple]="true" [disabled]="busy()"
+              (selected)="upload('photos',$event)"/>
           }
           <div class="portfolio-grid">
             @for (photo of property.photos; track photo.id; let first = $first) {
               <article class="portfolio-card">
-                <hg-private-photo [organization]="organization" [property]="id" [photo]="photo.id" [alt]="photo.name"/>
+                @if (photo.readable) {
+                  <hg-private-photo [organization]="organization" [property]="id" [photo]="photo.id" [alt]="photo.name"
+                    [loadingLabel]="ctx.label('loading')" [errorLabel]="ctx.label('fileUnavailable')"/>
+                } @else { <p class="card-body">{{ ctx.label('fileUnavailable') }}</p> }
                 <div class="card-body"><p><bdi>{{ photo.name }}</bdi></p>
-                  @if (first) { <hg-status [label]="ctx.label('currentCover')"/> }
+                  @if (photo.id === property.summary.coverPhotoId) { <hg-status [label]="ctx.label('currentCover')"/> }
                   @if (editable) {
                     <div class="actions">
                       @if (!first) {
-                        <button class="hg-secondary" type="button" [disabled]="busy()" (click)="orderPhoto(photo.id,true)">{{ ctx.label('cover') }}</button>
+                        @if (photo.readable && photo.id !== property.summary.coverPhotoId) {
+                          <button class="hg-secondary" type="button" [disabled]="busy()" (click)="orderPhoto(photo.id,true)">{{ ctx.label('cover') }}</button>
+                        }
                         <button class="hg-secondary" type="button" [disabled]="busy()" (click)="orderPhoto(photo.id,false)">{{ ctx.label('moveUp') }}</button>
                       }
                       <button class="hg-secondary" type="button" (click)="removeFile('photos',photo)">{{ ctx.label('remove') }}</button>
@@ -71,24 +81,49 @@
           </div>
         }
         @case ('contracts') {
+          <h2>{{ ctx.label('activeContract') }}</h2>
           <p>{{ property.summary.ownerName }}</p>
+          @if (property.activeContract; as active) {
+            <p><bdi>{{ active.startDate }} – {{ active.endDate || '—' }}</bdi> · {{ ctx.label('agreedCommission') }}
+              <bdi>{{ active.rate }}%</bdi></p>
+            @if (active.rate !== property.currentCommission) {
+              <p role="status">{{ ctx.label('commissionMismatch') }}
+                {{ ctx.label('currentCommission') }} <bdi>{{ property.currentCommission }}%</bdi>
+              </p>
+            }
+          } @else { <p>{{ ctx.label('noActiveContract') }}</p> }
+          <h2>{{ ctx.label('contractHistory') }}</h2>
           <ul class="record-list">
             @for (contract of property.contracts; track contract.id) {
-              <li><bdi>{{ contract.startDate }} – {{ contract.endDate || '—' }}</bdi> · {{ contract.rate }}%
+              <li><bdi>{{ contract.startDate }} – {{ contract.endDate || '—' }}</bdi> · {{ ctx.label('agreedCommission') }} <bdi>{{ contract.rate }}%</bdi>
                 <hg-status [label]="ctx.label(contract.status)" [tone]="contract.status === 'active' ? 'success' : 'muted'"/>
-                @if (contract.documentId) { <button type="button" class="hg-secondary" (click)="contractFile(contract)">{{ ctx.label('download') }} · {{ contract.documentName }}</button> }
+                <div class="actions">
+                  @if (contract.documentId) { <button type="button" class="hg-secondary" [disabled]="busy()" (click)="contractFile(contract)">{{ ctx.label('download') }} · {{ contract.documentName }}</button> }
+                  @if (editable && contract.status === 'scheduled') {
+                    <button type="button" class="hg-secondary" (click)="editContract(contract)">{{ ctx.label('editContract') }}</button>
+                  }
+                  @if (editable && contract.status === 'ended') {
+                    <button type="button" class="hg-secondary" (click)="archiveContract(contract)">{{ ctx.label('archiveContract') }}</button>
+                  }
+                </div>
               </li>
             } @empty { <li>{{ ctx.label('empty') }}</li> }
           </ul>
           @if (editable) {
-            <form class="portfolio-form" [formGroup]="contractForm" (ngSubmit)="createContract()">
+            <form class="portfolio-form" [formGroup]="contractForm" (ngSubmit)="saveContract()">
+              <h2 class="wide">{{ ctx.label(contractEditing() ? 'editContract' : 'addContract') }}</h2>
               <label>{{ ctx.label('startDate') }} <input type="date" formControlName="startDate" required></label>
               <label>{{ ctx.label('endDate') }} <input type="date" formControlName="endDate"></label>
-              <label>{{ ctx.label('commission') }} <input type="number" formControlName="rate" min="0" max="100" step="0.01"></label>
+              <label>{{ ctx.label('agreedCommission') }} <input type="number" formControlName="rate" min="0" max="100" step="0.01"></label>
               <label>{{ ctx.label('documents') }} <select formControlName="documentId"><option value="">{{ ctx.label('choose') }}</option>
-                @for (file of property.documents; track file.id) { <option [value]="file.id">{{ file.name }}</option> }
+                @for (file of property.documents; track file.id) {
+                  @if (file.readable) { <option [value]="file.id">{{ file.name }}</option> }
+                }
               </select></label>
-              <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label('addContract') }}</button>
+              <div class="actions">
+                <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label(contractEditing() ? 'save' : 'addContract') }}</button>
+                @if (contractEditing()) { <button type="button" class="hg-secondary" (click)="clearContract()">{{ ctx.label('cancel') }}</button> }
+              </div>
             </form>
             <form class="portfolio-form" [formGroup]="endForm" (ngSubmit)="endContract()">
               <label>{{ ctx.label('contracts') }} <select formControlName="contractId"><option value="">{{ ctx.label('choose') }}</option>
@@ -113,51 +148,100 @@
           </div>
           <h2>{{ ctx.label('inventoryList') }}</h2>
           <hg-search-input [label]="ctx.label('search')" [value]="inventoryQuery()" (valueChange)="inventoryQuery.set($event)"/>
-          <ul class="record-list">
-            @for (row of inventoryRows(property.inventory); track row.id) {
-              <li><strong>{{ row.name }} × {{ row.quantity }}</strong><span>{{ row.condition }}</span>
-                @if (editable) { <div class="actions">
+          @if (inventoryRows(property.inventory); as items) {
+          @if (items.length) {
+          <div class="table-scroll" tabindex="0" role="region" [attr.aria-label]="ctx.label('inventoryList')">
+          <table class="hg-table" [attr.aria-label]="ctx.label('inventoryList')">
+            <thead><tr><th scope="col">{{ ctx.label('name') }}</th><th scope="col">{{ ctx.label('quantity') }}</th>
+              <th scope="col">{{ ctx.label('condition') }}</th><th scope="col">{{ ctx.label('inventoryNotes') }}</th>
+              @if (editable) { <th scope="col">{{ ctx.label('inventoryActions') }}</th> }</tr></thead>
+            <tbody>
+            @for (row of items; track row.id) {
+              <tr><td><bdi>{{ row.name }}</bdi></td><td>{{ row.quantity }}</td><td><bdi>{{ row.condition || '—' }}</bdi></td>
+                <td><bdi>{{ row.notes || '—' }}</bdi></td>
+                @if (editable) { <td><div class="actions">
                   <button type="button" class="hg-secondary" (click)="editInventory(row)">{{ ctx.label('edit') }}</button>
                   <button type="button" class="hg-secondary" (click)="removeInventory(row)">{{ ctx.label('remove') }}</button>
-                </div> }
-              </li>
-            } @empty { <li>{{ ctx.label('empty') }}</li> }
-          </ul>
+                </div></td> }
+              </tr>
+            }
+            </tbody>
+          </table></div>
+          } @else { <p>{{ ctx.label('empty') }}</p> }
+          }
           @if (editable) {
             <form class="portfolio-form" [formGroup]="inventoryForm" (ngSubmit)="saveInventory()">
               <label>{{ ctx.label('name') }} <input formControlName="name" maxlength="200" required></label>
               <label>{{ ctx.label('quantity') }} <input type="number" formControlName="quantity" min="0" step="1" required></label>
               <label>{{ ctx.label('condition') }} <input formControlName="condition" maxlength="120"></label>
+              <label class="wide">{{ ctx.label('inventoryNotes') }} <textarea formControlName="notes" maxlength="1000"></textarea></label>
               <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label(inventoryEditing() ? 'save' : 'addInventory') }}</button>
             </form>
           }
         }
         @case ('pricing') {
           <h2>{{ ctx.label('commissionHistory') }}</h2>
+          <p>{{ ctx.label('currentCommission') }} · <bdi>{{ property.currentCommission }}%</bdi></p>
           <p>{{ ctx.label('defaultCommission') }} · {{ property.defaultCommission }}%</p>
-          <ul class="record-list">@for (row of property.commissionRates; track row.id) {
-            <li><bdi>{{ row.effectiveFrom }} – {{ row.effectiveTo || '—' }}</bdi> · {{ row.rate }}%</li>
-          } @empty { <li>{{ ctx.label('empty') }}</li> }</ul>
+          @if (property.commissionRates.length) {
+            <div class="table-scroll" tabindex="0" role="region" [attr.aria-label]="ctx.label('commissionHistory')">
+              <table class="hg-table" [attr.aria-label]="ctx.label('commissionHistory')">
+                <thead><tr><th scope="col">{{ ctx.label('effective') }}</th><th scope="col">{{ ctx.label('endDate') }}</th>
+                  <th scope="col">{{ ctx.label('commission') }}</th></tr></thead>
+                <tbody>@for (row of property.commissionRates; track row.id) {
+                  <tr><td><bdi>{{ row.effectiveFrom }}</bdi></td><td><bdi>{{ row.effectiveTo || '—' }}</bdi></td><td><bdi>{{ row.rate }}%</bdi></td></tr>
+                }</tbody>
+              </table>
+            </div>
+          } @else { <p>{{ ctx.label('empty') }}</p> }
           @if (editable) {
             <form class="portfolio-form" [formGroup]="rateForm" (ngSubmit)="createRate()">
-              <label>{{ ctx.label('effective') }} <input type="date" formControlName="effectiveFrom" required></label>
+              <p class="wide">{{ ctx.label('commissionWarning') }}</p>
+              <label>{{ ctx.label('effective') }} <input type="date" formControlName="effectiveFrom" [min]="property.businessDate" required></label>
               <label>{{ ctx.label('commission') }} <input type="number" min="0" max="100" step="0.01" formControlName="rate" required></label>
               <button class="portfolio-button" type="submit" [disabled]="busy()">{{ ctx.label('addRate') }}</button>
             </form>
           }
+          <h2>{{ ctx.label('baseNightlyRate') }}</h2>
+          <hg-currency [amount]="property.summary.baseNightlyRate"/>
+          @if (editable) {
+            <form class="portfolio-form" [formGroup]="baseRateForm" (ngSubmit)="saveBaseRate()">
+              <label>{{ ctx.label('rate') }} (MAD) <input type="number" step="0.01" min="0" formControlName="nightlyRate" required></label>
+              <button type="submit" class="portfolio-button" [disabled]="busy()">{{ ctx.label('saveBaseRate') }}</button>
+            </form>
+          }
+          <h2>{{ ctx.label('pricingPreview') }}</h2>
+          <p>{{ ctx.label('pricingQuoteNotice') }}</p>
+          <form class="portfolio-form" [formGroup]="previewForm" (ngSubmit)="previewRates()">
+            <label>{{ ctx.label('startDate') }} <input type="date" formControlName="start" required></label>
+            <label>{{ ctx.label('exclusiveEnd') }} <input type="date" formControlName="end" required></label>
+            <button type="submit" class="portfolio-button" [disabled]="busy()">{{ ctx.label('pricingPreview') }}</button>
+          </form>
+          @if (quotes(); as nights) {
+            <div class="table-scroll" tabindex="0" role="region" [attr.aria-label]="ctx.label('pricingPreview')">
+              <table class="hg-table" [attr.aria-label]="ctx.label('pricingPreview')">
+                <thead><tr><th scope="col">{{ ctx.label('startDate') }}</th><th scope="col">{{ ctx.label('pricingRuleType') }}</th>
+                  <th scope="col">{{ ctx.label('rate') }}</th></tr></thead>
+                <tbody>@for (night of nights; track night.night) {
+                  <tr><td><bdi>{{ night.night }}</bdi></td><td>{{ ctx.label(night.source === 'base' ? 'baseNightlyRate' : night.source) }}</td>
+                    <td><hg-currency [amount]="night.amount"/></td></tr>
+                }</tbody>
+              </table>
+            </div>
+          }
           <h2>{{ ctx.label('seasonalRates') }}</h2>
           <ul class="record-list">@for (row of property.seasonalRates; track row.id) {
             <li>{{ ctx.label(kinds[row.priority - 1]) }} · <bdi>{{ row.startDate }} – {{ row.endDate }}</bdi> · <hg-currency [amount]="row.nightlyRate"/>
-              @if (editable) { <button type="button" class="hg-secondary" (click)="editSeason(row)">{{ ctx.label('edit') }}</button> }
+              @if (editable && row.startDate > property.businessDate) { <button type="button" class="hg-secondary" (click)="editSeason(row)">{{ ctx.label('edit') }}</button> }
             </li>
           } @empty { <li>{{ ctx.label('empty') }}</li> }</ul>
           @if (editable) {
             <form class="portfolio-form" [formGroup]="seasonForm" (ngSubmit)="saveSeason()">
-              <label>{{ ctx.label('type') }} <select formControlName="priority" (change)="choosePriority($event)">
+              <label>{{ ctx.label('pricingRuleType') }} <select formControlName="priority" (change)="choosePriority($event)">
                 @for (kind of kinds; track kind; let index = $index) { <option [ngValue]="index + 1">{{ ctx.label(kind) }}</option> }
               </select></label>
-              <label>{{ ctx.label('startDate') }} <input type="date" formControlName="startDate" required></label>
-              <label>{{ ctx.label('endDate') }} <input type="date" formControlName="endDate" required></label>
+              <label>{{ ctx.label('startDate') }} <input type="date" formControlName="startDate" [min]="property.businessDate" required></label>
+              <label>{{ ctx.label('exclusiveEnd') }} <input type="date" formControlName="endDate" required></label>
               <label>{{ ctx.label('rate') }} (MAD) <input type="number" step="0.01" min="0" formControlName="nightlyRate" required></label>
               <fieldset class="wide"><legend>{{ ctx.label('days') }}</legend><div class="actions">
                 @for (day of days; track day; let index = $index) {
@@ -188,12 +272,14 @@
         }
         @case ('documents') {
           @if (editable) { <h2>{{ ctx.label('uploadDocument') }}</h2>
-            <hg-file-picker accept=".pdf" [maxBytes]="20971520" [multiple]="true" (selected)="upload('documents',$event)"/> }
+            <hg-file-picker accept=".pdf" [maxBytes]="null" [multiple]="true" [disabled]="busy()" (selected)="upload('documents',$event)"/> }
           <ul class="record-list">
             @for (file of property.documents; track file.id) {
               <li><strong><bdi>{{ file.name }}</bdi></strong><bdi>{{ file.contentType }} · {{ file.sizeBytes }} B</bdi> · {{ date(file.uploadedAt) }}
                 <div class="actions">
-                  <button type="button" class="hg-secondary" [disabled]="busy()" (click)="download(file)">{{ ctx.label('download') }}</button>
+                  @if (file.readable) {
+                    <button type="button" class="hg-secondary" [disabled]="busy()" (click)="download(file)">{{ ctx.label('download') }}</button>
+                  } @else { <span>{{ ctx.label('fileUnavailable') }}</span> }
                   @if (editable) { <button type="button" class="hg-secondary" (click)="removeFile('documents',file)">{{ ctx.label('remove') }}</button> }
                 </div>
               </li>

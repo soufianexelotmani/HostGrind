@@ -21,6 +21,8 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.8" />
     <PackageReference Include="Scalar.AspNetCore" Version="3.2.0" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
   </ItemGroup>
 
 </Project>

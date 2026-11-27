@@ -39,6 +39,8 @@ export const routes: Routes = [
       { path: 'owner', canActivate: [roleGuard], data: { role: 'Owner' }, loadComponent: dashboard },
       ...portfolio('admin', 'SuperAdmin'),
       ...portfolio('manager', 'Manager'),
+      { path: 'manager', canActivate: [roleGuard], data: { role: 'Manager' },
+        loadChildren: () => import('./features/bookings/booking.routes').then(module => module.bookingRoutes) },
       ...portfolio('owner', 'Owner'),
     ],
   },

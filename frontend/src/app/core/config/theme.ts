@@ -1,7 +1,16 @@
 import { definePreset } from '@primeuix/themes';
-import Aura from '@primeuix/themes/aura';
+import base from '@primeuix/themes/aura/base';
+import button from '@primeuix/themes/aura/button';
+import inputtext from '@primeuix/themes/aura/inputtext';
+import progressspinner from '@primeuix/themes/aura/progressspinner';
+import ripple from '@primeuix/themes/aura/ripple';
+import skeleton from '@primeuix/themes/aura/skeleton';
+import toast from '@primeuix/themes/aura/toast';
 
-export const HostGridPreset = definePreset(Aura, {
+// Keep Aura's shared tokens and the component presets used by HostGrid.
+const aura = { ...base, components: { button, inputtext, progressspinner, ripple, skeleton, toast } };
+
+export const HostGridPreset = definePreset(aura, {
   semantic: {
     primary: {
       50: '#fcf4ef', 100: '#f7e5db', 200: '#efcbbb', 300: '#e7aa91',
