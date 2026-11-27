@@ -8,4 +8,35 @@
 !.env.example
 /.local-tools/
 *.mdf
+*.ndf
 *.ldf
+*.bak
+
+# Local credentials and configuration
+secrets.json
+appsettings.Local.json
+appsettings.*.local.json
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Local data and diagnostic output
+private-files/
+private-data/
+uploads/
+logs/
+*.log
+
+# Dependencies, toolchains and generated artifacts
+node_modules/
+dist/
+.dotnet/
+.angular/
+.idea/
+**/.vscode/*
+TestResults/
+test-results/
+playwright-report/
+playwright/.cache/
+coverage/

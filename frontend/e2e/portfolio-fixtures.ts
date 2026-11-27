@@ -41,4 +41,3 @@ export async function screenshot(page: Page, name: string, captures?: string): P
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await page.screenshot({ path: join(captures, name + '.png'), fullPage: true, animations: 'disabled' });
 }
-
