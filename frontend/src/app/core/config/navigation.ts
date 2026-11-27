@@ -24,7 +24,7 @@ const menus: Record<WorkspaceRole, readonly NavigationItem[]> = {
     { label: 'dashboard', icon: LayoutDashboard, route: '/manager' },
     { label: 'properties', icon: Building2, route: '/manager/properties' }, { label: 'owners', icon: Users, route: '/manager/owners' },
     { label: 'guests', icon: Users, route: '/manager/guests' },
-    { label: 'reservations', icon: ClipboardList, route: '/manager/reservations' }, { label: 'calendar', icon: CalendarDays },
+    { label: 'reservations', icon: ClipboardList, route: '/manager/reservations' }, { label: 'calendar', icon: CalendarDays, route: '/manager/calendar' },
     { label: 'finance', icon: Wallet }, { label: 'expenses', icon: Receipt },
     { label: 'payouts', icon: Banknote }, { label: 'cleaning', icon: Sparkles },
     { label: 'maintenance', icon: Wrench }, { label: 'tasks', icon: ListTodo },

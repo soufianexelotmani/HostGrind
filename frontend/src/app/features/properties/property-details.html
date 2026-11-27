@@ -2,6 +2,9 @@
   @if (data(); as property) {
     <hg-page-header [title]="property.summary.name" [description]="property.summary.reference + ' · ' + property.summary.city">
       <a class="hg-secondary" [routerLink]="ctx.link('properties')" [queryParams]="query">{{ ctx.label('back') }}</a>
+      @if (ctx.role === 'Manager') {
+        <a class="hg-secondary" [routerLink]="['/manager/calendar', id]" [queryParams]="query">{{ 'ui.calendar' | transloco }}</a>
+      }
       @if (editable) { <a class="portfolio-button" [routerLink]="ctx.link('properties', id + '/edit')" [queryParams]="query">{{ ctx.label('editProperty') }}</a> }
     </hg-page-header>
     <div class="actions">

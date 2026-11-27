@@ -235,6 +235,9 @@ internal sealed class CalendarBlockConfiguration : IEntityTypeConfiguration<Cale
         {
             table.HasCheckConstraint("CK_CalendarBlock_Dates", "[EndDate] > [StartDate]");
             table.HasCheckConstraint("CK_CalendarBlock_Status", "[Status] BETWEEN 0 AND 1");
+            table.HasCheckConstraint("CK_CalendarBlock_Category", "[Category] BETWEEN 0 AND 4");
+            table.HasCheckConstraint("CK_CalendarBlock_Release", "[AvailabilityReleasedFrom] IS NULL OR " +
+                "([Status] = 1 AND [AvailabilityReleasedFrom] >= [StartDate] AND [AvailabilityReleasedFrom] < [EndDate])");
         });
         builder.HasKey(entity => entity.Id);
         builder.Property(entity => entity.Id).HasDefaultValueSql("NEWSEQUENTIALID()");
@@ -244,6 +247,11 @@ internal sealed class CalendarBlockConfiguration : IEntityTypeConfiguration<Cale
             .HasForeignKey(entity => entity.OrganizationId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(entity => entity.RowVersion).IsRowVersion();
         builder.Property(entity => entity.Reason).HasMaxLength(500);
+        builder.Property(entity => entity.Description).HasMaxLength(500);
+        builder.Property(entity => entity.CancellationReason).HasMaxLength(500);
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(entity => entity.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(entity => entity.UpdatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(entity => entity.CancelledByUserId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Property>().WithMany()
             .HasForeignKey(entity => new { entity.OrganizationId, entity.PropertyId })
             .HasPrincipalKey(entity => new { entity.OrganizationId, entity.Id }).OnDelete(DeleteBehavior.Restrict);

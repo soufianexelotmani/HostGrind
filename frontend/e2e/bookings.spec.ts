@@ -47,7 +47,10 @@ test('Manager creates, revises and records a historical reservation with private
     return day.toISOString().slice(0, 10);
   };
   const selectStay = async (start: string, end: string) => {
-    await page.getByRole('combobox', { name: 'Property', exact: true }).selectOption(property!, { timeout: 15_000 });
+    await expect(page.locator('form.portfolio-form button[type="submit"]')).toBeEnabled({ timeout: 15_000 });
+    const propertySelect = page.getByRole('combobox', { name: 'Property', exact: true });
+    await propertySelect.selectOption(property!, { timeout: 15_000 });
+    await expect(propertySelect).toHaveValue(property!);
     await page.getByRole('combobox', { name: 'Guest', exact: true }).selectOption(guestId!, { timeout: 15_000 });
     await page.getByLabel('Check-in date', { exact: true }).fill(start);
     await page.getByLabel('Checkout date', { exact: true }).fill(end);

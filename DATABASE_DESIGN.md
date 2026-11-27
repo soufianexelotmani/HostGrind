@@ -25,7 +25,7 @@ Un DbContext, Code First migrations, schémas `identity`, `organization`, `prope
 | booking | ReservationCancellation | ReservationId unique, reason, date, retainedFee |
 | booking | ReservationRefund | ReservationId, PaymentId si applicable, amount, date, payer, reference |
 | booking | ReservationStatusHistory | ReservationId, old/new status, actor, date |
-| booking | CalendarBlock | PropertyId, start/end exclusif, reason, status |
+| booking | CalendarBlock | PropertyId, start/end exclusif, motif historique, catégorie nullable, description, statut, rowversion, acteurs et heures UTC de création, modification et annulation, motif d’annulation, première nuit libérée |
 | booking | ReservationNight | ReservationId, PropertyId, NightDate, allocation net/commission, snapshot ; une ligne par réservation/nuit. Les conflits d'occupation entre réservations et blocages sont contrôlés sous verrou SQL partagé par bien. |
 | booking | ReservationPriceRevision | réservation tenant, révision unique par réservation, dates, mode, totaux, date UTC et acteur. |
 | booking | ReservationNightPrice | révision tenant, date unique par révision, prix accepté, provenance, règle facultative et indicateur de substitution. |

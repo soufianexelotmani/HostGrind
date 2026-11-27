@@ -64,6 +64,8 @@ Run `dotnet test` with LocalDB available, or set `HOSTGRID_TEST_SQLSERVER` to a 
 
 ## Reservation concurrency strategy
 
+`CalendarBlockLifecycle` adds nullable block category, audit actor IDs and timestamps, description, cancellation reason, and the first released night to `booking.CalendarBlock`. Existing rows retain their reason, status, dates and rowversion. The tenant-qualified property relationship and interval range index are retained. See the [manual block model](CALENDAR_BLOCKS.md).
+
 Checkpoint 6.1 uses a transaction-owned exclusive SQL Server application lock keyed by organization and property. Reservation and calendar block writes check both interval sources while locked, excluding only the authorized row being edited. Pending moves lock both properties in a stable order. The existing range indexes and per-reservation nightly uniqueness remain. See [availability](AVAILABILITY_ENGINE.md) for the API and [transaction design](RESERVATION_CONCURRENCY_DESIGN.md) for the SQL tests and future write requirements.
 
 `20261127133709_BookingAvailabilityFoundation` adds nullable release date, UTC time and actor columns with a consistency constraint and restrictive actor FK. Reservation-level commission rate and amount become nullable for new Pending holds. Existing values, precision, and nightly allocations are preserved. No historic dates are synthesized.

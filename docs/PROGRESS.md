@@ -316,3 +316,25 @@ The accepted policy keeps property commission changes explicit and historical co
 - `dotnet test --no-build --no-restore` passed **70 of 70** SQL Server integration cases with zero skips in 2 minutes 48 seconds. The test fixtures used their own disposable LocalDB catalogs.
 - The full Edge regression passed **10 of 10** in one run in about 1 minute 24 seconds. A separate repeat passed **9 of 9** in 52 seconds. Both used freshly migrated, isolated catalogs and synthetic accounts. Authentication rate limiting stayed enabled. The runner waited one full window after fixture setup.
 - Reviewed all 162 paths from the recovered commit and spot-checked the synthetic guest, owner and private-document screenshots. Credential-pattern and tracked-artifact checks found no matches. Verified the new ignore rules against representative sensitive and generated paths. Both the follow-up and cumulative baseline diffs passed `git diff --check`.
+
+## Phase 6 · Checkpoint 6.3-A calendar reads and indicators · 2026-11-27
+
+- Added the organization-scoped calendar feed and daily summary, using the existing tenant authorization and half-open availability semantics. Display filters leave authoritative holds intact. See the [contracts](CALENDAR_API.md) and [recovery file list](PHASE_06_RECOVERY.md).
+- Locked restore and the final backend build passed. The complete SQL Server suite passed **73 of 73** with zero skips, including scope and privacy, filtered holds, year boundaries, pagination and same-day turnover. Angular built at **421.78 kB** and **30 of 30** unit tests passed. No migration was needed for 6.3-A. Continue with 6.3-B block writes and recovery verification.
+
+## Phase 6 · Checkpoint 6.3-B block writes and concurrency · 2026-11-27
+
+- Added versioned manual block management, transactional audit, Casablanca release boundaries, and the nullable lifecycle fields. Reviewed the additive `CalendarBlockLifecycle` migration SQL. The corrected isolated migration replay preserved the legacy reservation and block dates and reason. Focused SQL coverage passed **6 of 6**, including competing HTTP block and reservation writes. See the [recovery file list](PHASE_06_RECOVERY.md) and [block lifecycle](CALENDAR_BLOCKS.md). The complete final regression is running.
+
+## Phase 6 · Checkpoints 6.3-C and 6.3-D calendar UI recovery · 2026-11-27
+
+- Recovered the existing Manager portfolio and property calendars, reservation prefill, previews and block controls. The production build passed at **429.63 kB**, the property FullCalendar chunk remains lazy, and Angular passed **34 of 34** unit tests. npm and NuGet production checks reported zero findings. Live `HostGridDb` has eight migrations through `CalendarBlockLifecycle`, with zero blocks, zero reservations and no EF model drift.
+- The interrupted browser run reached the three property views and the block workflow. The resumed run addresses the duplicate language-control selector and validates keyboard selection, localization and Owner denial. The first resumed benchmark setup hit an unsupported SQL fixture function. The synthetic generator now works without that function. Full Edge and performance results remain pending until the run completes.
+- The corrected benchmark run passed the live calendar scenario and captured all 13 screenshots. It measured 68–196 ms median across the six feed cases and 33 ms for the desktop scroll sample. The existing booking scenario exposed a test synchronization issue under the expanded fixture. The final run uses the standard synthetic fixture and a form-readiness assertion. See [performance](CALENDAR_MANAGEMENT.md#local-performance-measurements) and [screenshots](CALENDAR_UI_GUIDE.md#synthetic-screenshots).
+
+## Phase 6 · Checkpoint 6.3-E final acceptance · 2026-11-27
+
+- Locked restore and the final backend build passed with zero warnings and errors. The final SQL Server regression passed **78 of 78** with zero skips, including the migration replay and the waiting-reservation cancellation race. The calendar revision action now follows existing eligibility for legacy Confirmed reservations, with an added integration assertion.
+- Angular production passed at **429.63 kB** under the **500 kB** budget, and all **34 of 34** unit tests passed. The complete standard Playwright Edge run passed **11 of 11** in one execution with authentication rate limiting enabled. Both production dependency audits reported zero findings.
+- The existing development catalog has eight migrations through `CalendarBlockLifecycle` and EF reports no pending model changes. Direct and proxied liveness and readiness returned HTTP 200. Git whitespace and documentation link checks passed.
+- Checkpoints 6.3-A through 6.3-E are implemented and verified. See the [recovery record and modified file groups](PHASE_06_RECOVERY.md) and the [calendar user guide](CALENDAR_MANAGEMENT.md). Checkpoint 6.4 awaits approval. Owner-facing calendar UI remains deferred to 6.6.

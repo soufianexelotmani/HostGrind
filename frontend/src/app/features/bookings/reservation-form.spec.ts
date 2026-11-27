@@ -21,7 +21,8 @@ describe('reservation form', () => {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
         provideTransloco({ config: { availableLangs: ['en', 'fr', 'ar'], defaultLang: 'en' }, loader: UiTranslationLoader }),
-        { provide: ActivatedRoute, useFactory: () => ({ snapshot: { paramMap: convertToParamMap({}), data: { historical } } }) }],
+        { provide: ActivatedRoute, useFactory: () => ({ snapshot: { paramMap: convertToParamMap({}),
+          queryParamMap: convertToParamMap({}), data: { historical } } }) }],
     }).overrideComponent(ReservationForm, { set: { providers: [{
       provide: PortfolioContext, useValue: { organization: signal('org-1'), initialize: async () => {}, locale: 'en',
         label: (key: string) => key, choices: signal([]) },

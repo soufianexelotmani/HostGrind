@@ -37,18 +37,31 @@ internal sealed class AvailabilityRepository(HostGridDbContext database, ITenant
             SELECT * FROM [booking].[Reservation]
             WITH (FORCESEEK ([IX_Reservation_OrganizationId_PropertyId_CheckInDate_CheckOutDate] ([OrganizationId], [PropertyId])))
             WHERE [OrganizationId] = {tenant.AuthorizedOrganizationId} AND [PropertyId] = {property}
-            """).AsNoTracking().AnyAsync(row => row.Id != reservation &&
-            (row.Status != ReservationStatus.Cancelled || row.ActualCheckInAt != null) &&
-            row.CheckInDate < dates.CheckOutDate && row.CheckOutDate > dates.CheckInDate &&
-            (row.AvailabilityReleasedFrom == null || row.AvailabilityReleasedFrom > dates.CheckInDate &&
-                row.AvailabilityReleasedFrom > row.CheckInDate), token);
+            """).AsNoTracking().IntersectingReservationHolds(dates).AnyAsync(row => row.Id != reservation, token);
 
     internal Task<bool> HasBlockAsync(Guid property, StayDates dates, Guid? block, CancellationToken token)
         => Blocks.FromSqlInterpolated($"""
             SELECT * FROM [booking].[CalendarBlock]
             WITH (FORCESEEK ([IX_CalendarBlock_OrganizationId_PropertyId_StartDate_EndDate] ([OrganizationId], [PropertyId])))
             WHERE [OrganizationId] = {tenant.AuthorizedOrganizationId} AND [PropertyId] = {property}
-            """).AsNoTracking().AnyAsync(row => row.Id != block &&
-            row.Status == CalendarBlockStatus.Active && row.StartDate < dates.CheckOutDate &&
-            row.EndDate > dates.CheckInDate, token);
+            """).AsNoTracking().IntersectingBlockHolds(dates).AnyAsync(row => row.Id != block, token);
+}
+
+internal static class AvailabilityQueries
+{
+    internal static IQueryable<Reservation> IntersectingReservations(this IQueryable<Reservation> query, StayDates dates)
+        => query.Where(row => row.CheckInDate < dates.CheckOutDate && row.CheckOutDate > dates.CheckInDate);
+
+    internal static IQueryable<Reservation> IntersectingReservationHolds(this IQueryable<Reservation> query, StayDates dates)
+        => query.IntersectingReservations(dates).Where(row =>
+            (row.Status != ReservationStatus.Cancelled || row.ActualCheckInAt != null) &&
+            (row.AvailabilityReleasedFrom == null || row.AvailabilityReleasedFrom > dates.CheckInDate &&
+                row.AvailabilityReleasedFrom > row.CheckInDate));
+
+    internal static IQueryable<CalendarBlock> IntersectingBlocks(this IQueryable<CalendarBlock> query, StayDates dates)
+        => query.Where(row => row.StartDate < dates.CheckOutDate && row.EndDate > dates.CheckInDate);
+
+    internal static IQueryable<CalendarBlock> IntersectingBlockHolds(this IQueryable<CalendarBlock> query, StayDates dates)
+        => query.IntersectingBlocks(dates).Where(row => row.Status == CalendarBlockStatus.Active ||
+            (row.AvailabilityReleasedFrom > dates.CheckInDate && row.AvailabilityReleasedFrom > row.StartDate));
 }

@@ -25,3 +25,11 @@ Each checkpoint starts by inspecting the worktree and the last recorded evidence
 - **6.2-F** SQL, Angular and Edge acceptance, migration and health verification.
 
 The [recovery log](PHASE_06_RECOVERY.md) records verified milestones and rerun state.
+
+## Internal 6.3 milestones
+
+- **6.3-A** tenant-scoped calendar feed and daily indicators.
+- **6.3-B** versioned calendar block management, protected history, SQL locking and migration replay.
+- **6.3-C** lazy individual property views with FullCalendar Standard and quick actions.
+- **6.3-D** Angular 30-day portfolio grid with responsive navigation and filtering.
+- **6.3-E** integration, performance measurements, regression and documentation. Owner-facing calendar UI stays in 6.6.

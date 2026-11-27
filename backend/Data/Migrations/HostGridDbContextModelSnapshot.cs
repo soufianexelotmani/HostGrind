@@ -29,6 +29,32 @@ namespace HostGrid.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasDefaultValueSql("NEWSEQUENTIALID()");
 
+                    b.Property<DateOnly?>("AvailabilityReleasedFrom")
+                        .HasColumnType("date");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<short?>("Category")
+                        .HasColumnType("smallint");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
 
@@ -56,15 +82,31 @@ namespace HostGrid.Api.Data.Migrations
                     b.Property<short>("Status")
                         .HasColumnType("smallint");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasAlternateKey("OrganizationId", "Id");
+
+                    b.HasIndex("CancelledByUserId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("UpdatedByUserId");
 
                     b.HasIndex("OrganizationId", "PropertyId", "StartDate", "EndDate");
 
                     b.ToTable("CalendarBlock", "booking", t =>
                         {
+                            t.HasCheckConstraint("CK_CalendarBlock_Category", "[Category] BETWEEN 0 AND 4");
+
                             t.HasCheckConstraint("CK_CalendarBlock_Dates", "[EndDate] > [StartDate]");
+
+                            t.HasCheckConstraint("CK_CalendarBlock_Release", "[AvailabilityReleasedFrom] IS NULL OR ([Status] = 1 AND [AvailabilityReleasedFrom] >= [StartDate] AND [AvailabilityReleasedFrom] < [EndDate])");
 
                             t.HasCheckConstraint("CK_CalendarBlock_Status", "[Status] BETWEEN 0 AND 1");
                         });
@@ -3463,11 +3505,26 @@ namespace HostGrid.Api.Data.Migrations
 
             modelBuilder.Entity("HostGrid.Api.Entities.Booking.CalendarBlock", b =>
                 {
+                    b.HasOne("HostGrid.Api.Entities.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HostGrid.Api.Entities.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("HostGrid.Api.Entities.Organization.Organization", null)
                         .WithMany()
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("HostGrid.Api.Entities.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("HostGrid.Api.Entities.Property.Property", null)
                         .WithMany()

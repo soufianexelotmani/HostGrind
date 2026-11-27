@@ -186,7 +186,7 @@ public sealed class PropertyAvailability
                 "historical_booking_workflow_required");
     }
 
-    private async Task EnsureFreeAsync(Guid property, StayDates dates, Guid? reservation, Guid? block, CancellationToken token)
+    internal async Task EnsureFreeAsync(Guid property, StayDates dates, Guid? reservation, Guid? block, CancellationToken token)
     {
         var conflict = await ConflictAsync(property, dates, reservation, block, token);
         if (conflict is not null)

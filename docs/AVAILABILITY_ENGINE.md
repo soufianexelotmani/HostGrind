@@ -31,4 +31,6 @@ The migration adds nullable release date/time/actor evidence with a check and re
 
 ## Integration boundary for later checkpoints
 
+Checkpoint 6.3 shares the reservation and block overlap predicates with the [calendar read projections](CALENDAR_API.md). Calendar display filters never change these predicates. Block cancellation now preserves elapsed blocked dates when it records a release boundary. Legacy cancelled blocks without a known boundary remain released.
+
 Use the shared protocol for booking creation, confirmation or reactivation with occupancy effects, date edits, pending reassignment, extensions, cancellation and manual expiry, check-in/out outcomes with availability changes, NoShow release, and manual or future request/maintenance block creation, change, cancellation and activation. Keep changes to booking eligibility under the property lock. Future finance closure creation needs to share coordination with booking writes that check closed periods. Manual Pending expiry must record `PendingExpired`, the Manager and release time as specified in [the business rules](RESERVATION_BUSINESS_RULES.md).

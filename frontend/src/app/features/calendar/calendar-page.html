@@ -1,0 +1,177 @@
+<section class="portfolio-page calendar-page" [attr.aria-busy]="feedLoading()">
+  <hg-page-header [title]="propertyId ? c('property') : c('portfolio')" [description]="propertyId ? data()?.properties?.items?.[0]?.name ?? '' : ''">
+    @if (propertyId) { <a class="hg-secondary" routerLink="/manager/calendar" [queryParams]="{ organization: organization, date: day() }">{{ c('portfolio') }}</a> }
+    <button type="button" class="hg-secondary" (click)="refresh()">{{ c('refresh') }}</button>
+  </hg-page-header>
+
+  <div class="calendar-controls dashboard-panel">
+    @if (!propertyId) {
+      <button type="button" class="hg-secondary" (click)="shift(-30)">{{ c('previous') }}</button>
+      <button type="button" class="hg-secondary" (click)="today()">{{ c('today') }}</button>
+      <button type="button" class="hg-secondary" (click)="shift(30)">{{ c('next') }}</button>
+      <label>{{ c('search') }} <input type="search" [ngModel]="filters().search" (ngModelChange)="setFilter('search', $event)" maxlength="120"></label>
+      <label>{{ c('owner') }} <select [ngModel]="filters().ownerId" (ngModelChange)="setFilter('ownerId', $event)">
+        <option value="">{{ c('chooseOwner') }}</option>
+        @for (owner of owners(); track owner.id) { <option [value]="owner.id">{{ owner.name }}</option> }
+      </select></label>
+    }
+    <label>{{ c('date') }} <input type="date" [ngModel]="day()" (ngModelChange)="navigateDate($event)"></label>
+    <label>{{ c('source') }} <select [ngModel]="filters().bookingSource" (ngModelChange)="setFilter('bookingSource', $event)">
+      <option value="">{{ c('all') }}</option>
+      @for (source of sources; track source; let index = $index) { <option [value]="index">{{ t(source) }}</option> }
+    </select></label>
+    <label>{{ c('status') }} <select [ngModel]="filters().reservationStatus" (ngModelChange)="setFilter('reservationStatus', $event)">
+      <option value="">{{ c('all') }}</option>
+      @for (status of statuses; track status; let index = $index) { <option [value]="index">{{ t(status) }}</option> }
+    </select></label>
+    <label>{{ c('reason') }} <select [ngModel]="filters().blockReason" (ngModelChange)="setFilter('blockReason', $event)">
+      <option value="">{{ c('all') }}</option>
+      @for (reason of reasons; track reason; let index = $index) { <option [value]="index">{{ c(reason) }}</option> }
+    </select></label>
+    <label class="check"><input type="checkbox" [ngModel]="filters().includeCancelledReservations" (ngModelChange)="setFilter('includeCancelledReservations', $event)"> {{ c('cancelled') }}</label>
+    <label class="check"><input type="checkbox" [ngModel]="filters().includeCancelledBlocks" (ngModelChange)="setFilter('includeCancelledBlocks', $event)"> {{ c('cancelledBlocks') }}</label>
+  </div>
+
+  @if (summary(); as counts) {
+    <section class="calendar-summary" [attr.aria-label]="c('summary')">
+      @for (indicator of indicators; track indicator) {
+        <div class="dashboard-panel"><span>{{ c(indicator) }}</span><strong>{{ counts[indicator] }}</strong></div>
+      }
+    </section>
+  }
+  @if (summaryError() || feedError()) {
+    <p class="error" role="alert">{{ c('failure') }} <button type="button" class="hg-secondary" (click)="refresh()">{{ c('retry') }}</button></p>
+  }
+  @if (saved()) { <p class="success" role="status">{{ saved() }}</p> }
+
+  <ul class="calendar-legend" [attr.aria-label]="c('source')">
+    @for (source of sources; track source; let index = $index) { <li [class]="'source-' + index">{{ t(source) }}</li> }
+    <li class="block-event">{{ c('createBlock') }}</li>
+  </ul>
+
+  @if (propertyId) {
+    @defer (on immediate) {
+      <div class="dashboard-panel calendar-property">
+        <hg-property-calendar #propertyCalendar [day]="referenceDate()" [language]="calendarPreferences.language()" [events]="events()" [holds]="propertyHolds()"
+          (windowChanged)="changeWindow($event)" (datesSelected)="selectPropertyDates($event)" (eventSelected)="inspect($event)" />
+      </div>
+    } @placeholder { <hg-loading /> }
+  }
+  @if (feedLoading()) { <hg-loading /> }
+
+  @if (data(); as calendarData) {
+    @if (calendarData.properties.items.length === 0) { <p class="dashboard-panel">{{ c('empty') }}</p> }
+    @if (!propertyId && calendarData.properties.items.length) {
+      <div class="calendar-grid" role="region" tabindex="0" [attr.aria-label]="c('portfolio')">
+        <table>
+          <thead><tr><th scope="col">{{ c('property') }}</th>
+            @for (date of dates(); track date) {
+              <th scope="col" [attr.data-calendar-date]="date"><button type="button" (click)="day.set(date)" [attr.aria-pressed]="day() === date">{{ this.date(date) }}</button></th>
+            }
+          </tr></thead>
+          <tbody>
+            @for (property of calendarData.properties.items; track property.id) {
+              <tr [attr.data-property]="property.id"><th scope="row"><a [routerLink]="['/manager/calendar', property.id]" [queryParams]="{ organization: organization, date: day() }">{{ property.name }}</a><small>{{ property.reference }}</small></th>
+                @for (date of dates(); track date) {
+                  <td [attr.data-date]="date" [class.held]="nightUnavailable(property.id, date)">
+                    @for (event of nightEvents(property.id, date); track event.id) {
+                      <button type="button" [class]="'calendar-entry ' + event.tone" (click)="inspect(event)">{{ event.title }}</button>
+                    }
+                    @if (!nightUnavailable(property.id, date) && property.status !== 2 && date >= calendarData.businessDate) {
+                      <button type="button" class="calendar-cell" (click)="selectDates(property, date)" [attr.aria-label]="c('select') + ' · ' + property.name + ' · ' + this.date(date)">+</button>
+                    } @else if (!nightEvents(property.id, date).length) {
+                      <span class="calendar-cell" [attr.aria-label]="c('unavailable')">—</span>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <div class="calendar-agenda" [class.property-agenda]="!!propertyId" [attr.aria-label]="c('agenda')">
+      @for (property of calendarData.properties.items; track property.id) {
+        <section class="dashboard-panel">
+          @if (!propertyId) { <h2><a [routerLink]="['/manager/calendar', property.id]" [queryParams]="{ organization: organization, date: day() }">{{ property.name }}</a></h2> }
+          @if (property.status !== 2) { <button type="button" class="hg-secondary" (click)="selectDates(property, day())">{{ c('select') }}</button> }
+          @for (event of propertiesEvents(property.id); track event.id) {
+            <button type="button" [class]="'calendar-entry ' + event.tone" (click)="inspect(event)">
+              {{ event.title }} · {{ date(event.startDate) }} – {{ date(event.endDate) }}
+            </button>
+          } @empty { <p>{{ c('noEvents') }}</p> }
+        </section>
+      }
+    </div>
+    @if (!propertyId && calendarData.properties.total > calendarData.properties.pageSize) {
+      <nav class="actions" [attr.aria-label]="c('page')">
+        <button type="button" class="hg-secondary" [disabled]="filters().page < 2" (click)="changePage(-1)">‹</button>
+        <span>{{ c('page') }} {{ filters().page }}</span>
+        <button type="button" class="hg-secondary" [disabled]="filters().page * calendarData.properties.pageSize >= calendarData.properties.total"
+          (click)="changePage(1)">›</button>
+      </nav>
+    }
+  }
+</section>
+
+<hg-modal [title]="c('details')" [drawer]="true" [(open)]="previewOpen">
+  @if (selectedEvent(); as event) {
+    <div class="calendar-dialog">
+      <h3>{{ event.title }}</h3>
+      <p>{{ date(event.startDate) }} – {{ date(event.endDate) }}</p>
+      @if (event.reservation; as reservation) {
+        <p>{{ t(sources[reservation.source]) }} @if (reservation.guestName) { · {{ reservation.guestName }} }</p>
+        @if (reservation.paymentStatus !== null) { <p>{{ paymentLabel(reservation.paymentStatus) }}</p> }
+        @if (reservation.canViewDetails) {
+          <a class="hg-secondary" [routerLink]="['/manager/reservations', reservation.id]" [queryParams]="query">{{ c('viewReservation') }}</a>
+        }
+        @if (reservation.canEdit) {
+          <a class="hg-secondary" [routerLink]="['/manager/reservations', reservation.id, 'edit']" [queryParams]="reservationQuery()">{{ c('editReservation') }}</a>
+        }
+      }
+      @if (event.block; as block) {
+        @if (block.description) { <p>{{ block.description }}</p> }
+        @if (block.canEdit) { <button type="button" class="hg-secondary" (click)="openBlock(block)">{{ c('editBlock') }}</button> }
+        @if (block.canCancel) { <button type="button" class="hg-secondary" (click)="openCancel()">{{ c('cancelBlock') }}</button> }
+      }
+    </div>
+  }
+</hg-modal>
+
+<hg-modal [title]="c('select')" [(open)]="selectionOpen">
+  <form class="calendar-dialog" (ngSubmit)="checkSelection()">
+    <h3>{{ draftProperty()?.name }}</h3>
+    <label>{{ c('start') }} <input type="date" name="start" [ngModel]="draftStart()" (ngModelChange)="draftStart.set($event); selectionAccepted.set(false)" required></label>
+    <label>{{ c('end') }} <input type="date" name="end" [ngModel]="draftEnd()" (ngModelChange)="draftEnd.set($event); selectionAccepted.set(false)" required></label>
+    @if (actionError()) { <p class="error" role="alert">{{ actionError() }}</p> }
+    <button type="submit" class="hg-secondary">{{ c('apply') }}</button>
+    @if (selectionAccepted()) {
+      @if (draftProperty()?.status === 0) {
+        <a class="portfolio-button" routerLink="/manager/reservations/new" [queryParams]="reservationQuery()">{{ c('createReservation') }}</a>
+      } @else { <p>{{ c('propertyNotBookable') }}</p> }
+      <button type="button" class="portfolio-button" (click)="openBlock(null)">{{ c('createBlock') }}</button>
+    }
+  </form>
+</hg-modal>
+
+<hg-modal [title]="editingBlock() ? c('editBlock') : c('createBlock')" [(open)]="blockOpen">
+  <form class="calendar-dialog" (ngSubmit)="saveBlock()">
+    <label>{{ c('start') }} <input type="date" name="blockStart" [(ngModel)]="draftStart" required></label>
+    <label>{{ c('end') }} <input type="date" name="blockEnd" [(ngModel)]="draftEnd" required></label>
+    <label>{{ c('reason') }} <select name="blockReason" [(ngModel)]="draftReason" required>
+      <option [ngValue]="null">—</option>
+      @for (reason of reasons; track reason; let index = $index) { <option [ngValue]="index">{{ c(reason) }}</option> }
+    </select></label>
+    <label>{{ c('description') }} <textarea name="description" [(ngModel)]="description" maxlength="500"></textarea></label>
+    @if (actionError()) { <p class="error" role="alert">{{ actionError() }}</p> }
+    <button type="submit" class="portfolio-button" [disabled]="writing()">{{ c('save') }}</button>
+  </form>
+</hg-modal>
+
+<hg-modal [title]="c('cancelBlock')" [(open)]="cancellationOpen">
+  <form class="calendar-dialog" (ngSubmit)="cancelBlock()">
+    <label>{{ c('cancelReason') }} <textarea name="cancelReason" [(ngModel)]="cancelReason" maxlength="500" required></textarea></label>
+    @if (actionError()) { <p class="error" role="alert">{{ actionError() }}</p> }
+    <button type="submit" class="portfolio-button" [disabled]="writing()">{{ c('confirmCancel') }}</button>
+  </form>
+</hg-modal>

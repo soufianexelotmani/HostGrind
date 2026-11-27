@@ -3,6 +3,7 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { filter, firstValueFrom, tap } from 'rxjs';
 import { ConfirmationDialog, ErrorState, LoadingSpinner, StatusBadge } from '../../shared/components/feedback';
 import { CurrencyDisplay, FilePicker, SearchInput } from '../../shared/components/form-elements';
@@ -22,7 +23,7 @@ const moneyValidators = [Validators.required, Validators.min(0), Validators.patt
 @Component({
   selector: 'hg-property-details', providers: [PortfolioContext],
   imports: [RouterLink, ReactiveFormsModule, ConfirmationDialog, ErrorState, LoadingSpinner, StatusBadge,
-    CurrencyDisplay, FilePicker, SearchInput, PageHeader, PrivatePhoto],
+    CurrencyDisplay, FilePicker, SearchInput, PageHeader, PrivatePhoto, TranslocoPipe],
   templateUrl: './property-details.html',
   styleUrl: './portfolio-page.scss',
 })

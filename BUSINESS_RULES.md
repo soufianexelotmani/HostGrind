@@ -52,6 +52,23 @@ Décisions approuvées au checkpoint 6.2
 
 La répartition des centimes résiduels attribue un centime à chaque nuit non renseignée, de la plus ancienne à la plus récente, après division en centimes entiers. Ce calcul décrit le prix accepté. Le montant de commission de réservation est arrondi au centime, à mi-distance en s'éloignant de zéro. Les règles d'allocation comptable restent au checkpoint financier. En historique, accepter uniquement les séjours terminés sur un bien Active, selon sa capacité actuelle, avec date réelle de confirmation et PDF privé conforme à la politique d'analyse. Une date connue sans heure reste une date.
 
+## Calendrier et blocages de dates (6.3)
+
+1. Le calendrier Manager s’ouvre sur une grille de 30 jours consécutifs, avec une ligne par bien et la date métier Africa/Casablanca comme point de départ.
+2. Sélectionner une période disponible ouvre le formulaire de réservation existant avec le bien et les dates préremplis. La création exige la validation explicite du formulaire.
+3. Le glisser-déposer et le redimensionnement des réservations sont désactivés. Toute modification passe par le formulaire de révision autorisé.
+4. Les motifs de blocage manuel sont `Maintenance`, `OwnerUse`, `Unavailability`, `Renovation` et `Other`, traduits en français, anglais et arabe.
+5. Les conflits entre réservations et blocages et entre blocages restent stricts sous le verrou SQL partagé. Aucun forçage.
+6. Les blocages peuvent être modifiés dans les limites autorisées et annulés avec audit. Le dossier historique est conservé sans suppression physique.
+7. Un blocage exige une date de début et une date de fin exclusive. Une prolongation future passe par la modification autorisée.
+8. La couleur indique la source de réservation. Le statut et le motif de blocage disposent de libellés ou d’indicateurs accessibles distincts.
+9. Les réservations annulées sont masquées par défaut et affichables sur demande. Le filtre ne modifie ni la disponibilité ni la protection des nuits historiques.
+10. Le serveur calcule les arrivées prévues, les départs prévus et les nombres de biens occupés, disponibles et bloqués à la date sélectionnée.
+11. La création rétroactive de blocages est interdite selon la date métier Africa/Casablanca. Les blocages historiques existants sont conservés.
+12. Chaque blocage concerne exactement un bien. La création groupée est hors périmètre V1.
+
+Précisions approuvées pour 6.3. Les biens occupés comptent les nuits Confirmed ou CheckedIn et les nuits historiques effectivement occupées. Les nouveaux blocages sont admis sur les biens Active ou Inactive. Un changement ou une annulation de blocage en cours conserve les nuits écoulées et peut libérer des dates à partir d’aujourd’hui, heure métier Africa/Casablanca.
+
 ## Charges et opérations
 Catégories personnalisables (eau, électricité, internet, nettoyage, linge, maintenance, mobilier, consommables, syndic, assurance, taxes, autres). Charge récurrente créée automatiquement en Draft, confirmation manager avec justificatif obligatoire. Paiements partiels, échéances, alertes dues ; une charge par bien. Pas de fournisseur dédié, charge commune ou dépense interne. Annulation/ajustement tracés. Nettoyage auto après checkout confirmé, unique par réservation ; nettoyage manuel possible. Checklist snapshot du modèle ; intervenants nom/tel/spécialité sans login. Maintenance simple, tâches manuelles/auto liste/Kanban/calendrier ; photos optionnelles, charge liée créée après confirmation avec justificatif. Manager décide blocage. Statut opérationnel indépendant du statut réservation.
 

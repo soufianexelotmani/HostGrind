@@ -9,6 +9,7 @@ const propertyDetails = () => import('./features/properties/property-details').t
 const ownerList = () => import('./features/owners/owner-pages').then(module => module.OwnerList);
 const ownerDetails = () => import('./features/owners/owner-pages').then(module => module.OwnerDetails);
 const ownerForm = () => import('./features/owners/owner-pages').then(module => module.OwnerForm);
+const calendar = () => import('./features/calendar/calendar-page').then(module => module.CalendarPage);
 
 function portfolio(path: string, role: 'Manager' | 'Owner' | 'SuperAdmin'): Routes {
   const route = (suffix: string, loadComponent: NonNullable<Routes[number]['loadComponent']>) =>
@@ -39,6 +40,8 @@ export const routes: Routes = [
       { path: 'owner', canActivate: [roleGuard], data: { role: 'Owner' }, loadComponent: dashboard },
       ...portfolio('admin', 'SuperAdmin'),
       ...portfolio('manager', 'Manager'),
+      { path: 'manager/calendar', canActivate: [roleGuard], data: { role: 'Manager' }, loadComponent: calendar },
+      { path: 'manager/calendar/:propertyId', canActivate: [roleGuard], data: { role: 'Manager' }, loadComponent: calendar },
       { path: 'manager', canActivate: [roleGuard], data: { role: 'Manager' },
         loadChildren: () => import('./features/bookings/booking.routes').then(module => module.bookingRoutes) },
       ...portfolio('owner', 'Owner'),

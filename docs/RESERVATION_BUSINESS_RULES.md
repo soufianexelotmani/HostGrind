@@ -55,10 +55,12 @@ Use business dates and half-open windows `[CheckInDate, CheckOutDate)`. The over
 | CheckedOut | Historical booked and actual stay evidence remains. Normal checkout unblocks after the original exclusive end. An early checkout cannot silently make unelapsed nights bookable. |
 | Cancelled | Releases the hold for current/future booking. Original dates and cancellation event remain for historical reporting. |
 | NoShow | Blocks until explicit release or interval end. After release, truncate only the effective occupancy window at the approved first released night. Preserve original dates, snapshots and pre-release history. |
-| Active calendar block | A manual block occupies its own half-open interval, independent of booking source and event filters. Cancelled blocks stay in history and cease blocking. |
+| Calendar block | An active manual block holds its half-open interval regardless of event filters. An ongoing cancellation retains elapsed nights and releases the interval from today's Casablanca business date. Future cancellations release the entire future block. |
 | Maintenance and Owner-requested blocks | Only an explicitly authorized Manager block or later approved Manager action creates occupancy. Maintenance status and a submitted or approved request alone do not change availability. |
 
 Historical reporting distinguishes planned occupancy, released holds and realized stays. Preserve stay dates and actual timestamps. Do not backfill occupancy or infer realized nights from a payment or status change. Existing obligations remain visible after a property goes inactive or is archived. Operational status continues independently.
+
+The twelve approved calendar decisions are in the [root rules](../BUSINESS_RULES.md#calendrier-et-blocages-de-dates-63). The [daily summary contract](CALENDAR_API.md#daily-summary) records the approved occupancy definition.
 
 ## Pricing, commission and recorded cash
 

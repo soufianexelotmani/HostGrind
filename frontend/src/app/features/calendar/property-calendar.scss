@@ -1,0 +1,29 @@
+:host { display: block; }
+:host ::ng-deep .fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--surface);
+  --fc-neutral-bg-color: var(--surface-alt);
+  --fc-button-bg-color: var(--surface-alt);
+  --fc-button-border-color: var(--control-border);
+  --fc-button-text-color: var(--text);
+  --fc-button-hover-bg-color: var(--border);
+  --fc-button-hover-border-color: var(--control-border);
+  --fc-button-active-bg-color: var(--border);
+  --fc-button-active-border-color: var(--control-border);
+  --fc-today-bg-color: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+:host ::ng-deep .fc .fc-toolbar { flex-wrap: wrap; gap: .6rem; }
+:host ::ng-deep .fc .fc-toolbar-title { font-size: clamp(1.15rem, 3vw, 1.75rem); }
+:host ::ng-deep .fc .fc-event { cursor: pointer; }
+:host ::ng-deep .fc .fc-event-title { overflow-wrap: anywhere; }
+:host ::ng-deep .fc .hg-calendar-event {
+  --fc-event-bg-color: var(--surface-alt);
+  --fc-event-border-color: var(--event-color, var(--control-border));
+  --fc-event-text-color: var(--text);
+  border-inline-start-width: 4px;
+}
+:host ::ng-deep .fc .source-0 { --event-color: var(--success); }
+:host ::ng-deep .fc .source-1 { --event-color: var(--info); }
+:host ::ng-deep .fc .source-2 { --event-color: var(--primary); }
+:host ::ng-deep .fc .block-event { --event-color: var(--warning); }
+:host ::ng-deep .fc .hg-calendar-hold { --fc-bg-event-color: var(--warning); --fc-bg-event-opacity: .14; }

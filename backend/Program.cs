@@ -20,9 +20,17 @@ builder.AddHostGridSecurity();
 PortfolioValidation.Register(builder.Services);
 GuestValidation.Register(builder.Services);
 ReservationValidation.Register(builder.Services);
+CalendarBlockValidation.Register(builder.Services);
 builder.Services.AddScoped<GuestRepository>();
 builder.Services.AddScoped<GuestManagement>();
 builder.Services.AddScoped<ReservationRepository>();
+builder.Services.AddScoped<CalendarRepository>();
+builder.Services.AddOptions<CalendarOptions>().BindConfiguration("Calendar")
+    .Validate(options => options.MaximumDays is >= 42 and <= 93).ValidateOnStart();
+builder.Services.AddScoped(services => new CalendarManagement(services.GetRequiredService<CalendarRepository>(),
+    services.GetRequiredService<PortfolioAccess>(),
+    services.GetRequiredService<Microsoft.Extensions.Options.IOptions<CalendarOptions>>(),
+    services.GetRequiredService<TimeProvider>()));
 builder.Services.AddScoped<ReservationPricing>();
 builder.Services.AddScoped<ReservationConfirmation>();
 builder.Services.AddScoped<ReservationEvidence>();
@@ -45,6 +53,10 @@ builder.Services.AddOptions<AvailabilityOptions>().BindConfiguration("Availabili
     .Validate(options => options.LockTimeoutMilliseconds is >= 1 and <= 15000).ValidateOnStart();
 builder.Services.AddScoped<AvailabilityRepository>();
 builder.Services.AddScoped<AvailabilityTransactions>();
+builder.Services.AddScoped(services => new CalendarBlockManagement(services.GetRequiredService<AvailabilityRepository>(),
+    services.GetRequiredService<AvailabilityTransactions>(), services.GetRequiredService<PropertyAvailability>(),
+    services.GetRequiredService<PortfolioAccess>(), services.GetRequiredService<PortfolioAudit>(),
+    services.GetRequiredService<TimeProvider>()));
 builder.Services.AddScoped(services => new PropertyAvailability(services.GetRequiredService<AvailabilityRepository>(),
     services.GetRequiredService<AvailabilityTransactions>(), services.GetRequiredService<PortfolioRepository>(),
     services.GetRequiredService<PortfolioAccess>(), services.GetRequiredService<PortfolioAudit>(),

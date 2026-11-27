@@ -198,9 +198,16 @@ erDiagram
   CalendarBlock {
     guid Id PK
     guid OrganizationId FK
+    guid PropertyId FK
+    smallint Category
+    date StartDate
+    date EndDate
+    date AvailabilityReleasedFrom
+    rowversion RowVersion
   }
   Organization ||--o{ CalendarBlock : OrganizationId
   Property ||--o{ CalendarBlock : PropertyId
+  ApplicationUser o|--o{ CalendarBlock : CreatedUpdatedOrCancelledBy
   ReservationNight {
     guid Id PK
     guid OrganizationId FK

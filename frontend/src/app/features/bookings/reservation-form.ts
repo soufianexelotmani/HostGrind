@@ -9,6 +9,7 @@ import { Pagination } from '../../shared/components/data-table';
 import { PageHeader } from '../../shared/components/page-elements';
 import { Page, PropertySummary, PropertyView } from '../properties/portfolio-api';
 import { PortfolioContext } from '../properties/portfolio-context';
+import { validIsoDate } from '../calendar/calendar-models';
 import { Guest, Night, payments, Reservation, Revision, sources, statuses } from './booking-models';
 import { BookingPage } from './booking-page';
 
@@ -197,7 +198,12 @@ export class ReservationForm extends BookingPage {
         data.append('file', this.file()!);
         id = (await firstValueFrom(this.api.post<{ id: string }>(this.organization, 'reservations/historical', data))).id;
       } else id = (await firstValueFrom(this.api.post<{ id: string }>(this.organization, 'reservations', input))).id;
-      await this.router.navigate(['/manager/reservations', id], { queryParams: this.query });
+      const calendarDate = this.route.snapshot.queryParamMap.get('calendarDate');
+      const calendarProperty = this.route.snapshot.queryParamMap.get('calendarProperty');
+      if (validIsoDate(calendarDate) && !this.historical) {
+        await this.router.navigate(calendarProperty === value.propertyId ? ['/manager/calendar', value.propertyId] : ['/manager/calendar'],
+          { queryParams: { ...this.query, date: calendarDate } });
+      } else await this.router.navigate(['/manager/reservations', id], { queryParams: this.query });
     });
   }
 
@@ -223,6 +229,14 @@ export class ReservationForm extends BookingPage {
       if (summary.status === 1) {
         for (const key of ['propertyId', 'guestId', 'source', 'externalBookingId', 'mode'] as const) this.form.controls[key].disable();
       }
+    } else if (!this.historical) {
+      const params = this.route.snapshot.queryParamMap;
+      const propertyId = params.get('propertyId');
+      const checkInDate = params.get('checkInDate');
+      const checkOutDate = params.get('checkOutDate');
+      if (propertyId && /^[0-9a-f-]{36}$/i.test(propertyId) && validIsoDate(checkInDate) &&
+          validIsoDate(checkOutDate) && checkInDate < checkOutDate)
+        this.form.patchValue({ propertyId, checkInDate, checkOutDate });
     }
     await this.loadProperties();
     await this.loadGuests();

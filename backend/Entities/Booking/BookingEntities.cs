@@ -140,7 +140,17 @@ public sealed class CalendarBlock : ITenantEntity
     public DateOnly StartDate { get; set; }
     public DateOnly EndDate { get; set; }
     public string Reason { get; set; } = null!;
+    public CalendarBlockReason? Category { get; set; }
+    public string? Description { get; set; }
     public CalendarBlockStatus Status { get; set; }
+    public DateTime? CreatedAt { get; set; }
+    public Guid? CreatedByUserId { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public Guid? UpdatedByUserId { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public Guid? CancelledByUserId { get; set; }
+    public string? CancellationReason { get; set; }
+    public DateOnly? AvailabilityReleasedFrom { get; set; }
     public byte[] RowVersion { get; set; } = null!;
 }
 

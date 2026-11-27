@@ -24,7 +24,7 @@ Le détail des dépendances, endpoints, contrôles de sécurité et tests se tro
 - 6.0 Règles métier et audit technique, sans implémentation.
 - 6.1 Disponibilité et protection contre les écritures concurrentes.
 - 6.2 Voyageurs et gestion des réservations manuelles, prix acceptés et révisions, confirmation directe et saisie historique avec justificatif privé.
-- 6.3 Calendrier global et blocages de dates.
+- 6.3 Calendrier global et blocages de dates, par [jalons de reprise](docs/PHASE_06_CHECKPOINTS.md#internal-63-milestones). L’interface calendrier Owner reste en 6.6.
 - 6.4 Cycle de vie, arrivée et départ.
 - 6.5 Paiements enregistrés, annulations et remboursements.
 - 6.6 Consultation des réservations par Owner.

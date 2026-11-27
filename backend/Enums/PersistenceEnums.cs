@@ -85,6 +85,15 @@ public enum CalendarBlockStatus : short
     Cancelled = 1
 }
 
+public enum CalendarBlockReason : short
+{
+    Maintenance = 0,
+    OwnerUse = 1,
+    Unavailability = 2,
+    Renovation = 3,
+    Other = 4
+}
+
 public enum ExpenseStatus : short
 {
     Draft = 0,

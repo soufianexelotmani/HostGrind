@@ -2,6 +2,8 @@
 
 Managers can manage [guests](docs/GUEST_MANAGEMENT.md), [reservations](docs/RESERVATION_MANAGEMENT.md) and [historical entries](docs/HISTORICAL_RESERVATIONS.md). [Accepted nightly pricing](docs/RESERVATION_PRICING.md) explains how quotes, overrides and allocations are stored.
 
+The Manager [calendar](docs/CALENDAR_MANAGEMENT.md) shows portfolio and property schedules, daily indicators, and manual blocks. See the [calendar API](docs/CALENDAR_API.md) for scope, date ranges, and availability semantics.
+
 HostGrid is a property management platform for Moroccan concierge businesses. The solution contains the ASP.NET Core API under `backend/` and the Angular standalone app under `frontend/`. See the [progress log](docs/PROGRESS.md) for verification and scope.
 
 Phase 5 adds scoped property and Owner management, invitations, private photos and PDFs, contracts, commission history, inventory, nightly pricing and manual listing metadata. The Owner portal gives Owners read-only access to their assigned properties. See [property management](docs/PROPERTY_MANAGEMENT.md) for the routes and [Phase 5 acceptance](docs/PHASE_05_ACCEPTANCE.md) for verification, production blockers and the Reservations & Calendar handoff.
